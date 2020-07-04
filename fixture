@@ -1,0 +1,21 @@
+#!/usr/bin/env ruby
+
+if ARGV.size != 2
+  puts("Usage: fixture action delay")
+  exit 1
+end
+
+action = ARGV[0]
+delay = ARGV[1]
+
+sleep delay.to_i
+
+case action
+  when "succeed"
+    exit 0
+  when "fail"
+    exit 127
+  else
+    puts("WTF MAN")
+    exit 2
+end

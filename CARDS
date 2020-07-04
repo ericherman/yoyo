@@ -1,0 +1,6 @@
+- catch sigchld, exit code 0? exit with success
+- catch sigchld, exit code != 0? retry maybe
+- look at thread state & user/system time
+	- if it's stuck, kill & retry maybe
+	- if it's doing something worthwhile, let it abide
+

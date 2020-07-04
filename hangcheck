@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+
+HANG_CHECK_INTERVAL = 5
+
+commandline = ARGV.join(' ')
+
+childpid = Process.fork
+
+def process_looks_hung(pid)
+  false
+end
+
+if childpid # WE IS PARENT
+  Signal.trap("CHLD") do
+    puts("Child died (or stopped but let's ignore that)")
+    Process.wait(childpid)
+    puts("Child process::status: #{$?}")
+    exit 0
+  end
+  loop do
+    sleep HANG_CHECK_INTERVAL
+    if process_looks_hung(childpid)
+      Process.kill(childpid)
+    else
+      puts("Child still appears to be doing something worthwhile")
+    end
+  end
+else # WE IS CHILD
+  exec(commandline)
+end

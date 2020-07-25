@@ -1,3 +1,4 @@
+- consider environment variable for tmpfile name
 - catch sigchld, exit code 0? exit with success
 - catch sigchld, exit code != 0? retry maybe
 - look at thread state & user/system time

@@ -3,7 +3,7 @@
 # $^ : all of the prerequisite files
 # $* : wildcard matched part
 
-default: hangcheckc
+default: check
 
 # -Wno-unused-parameter -Wno-unused-variable
 CFLAGS += -g -DNDEBUG -O2 \

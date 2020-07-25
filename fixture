@@ -1,21 +1,32 @@
 #!/usr/bin/env ruby
 
-if ARGV.size != 2
-  puts("Usage: fixture action delay")
+if ARGV.size != 1
+  puts('Usage: fixture delay')
+  puts('create a /tmp/failcount file first or it will just succeed')
   exit 1
 end
 
-action = ARGV[0]
-delay = ARGV[1]
+action = 'succeed'
+delay = ARGV[0].to_i
 
-sleep delay.to_i
+if File.exist?('/tmp/failcount')
+  failcount = File.read('/tmp/failcount').to_i
+  if failcount == 0
+    action = 'succeed'
+  else
+    File.open('/tmp/failcount', 'w') { |f| f.puts(failcount - 1) }
+    action = 'fail'
+  end
+end
+
+sleep delay
 
 case action
-  when "succeed"
+  when 'succeed'
     exit 0
-  when "fail"
+  when 'fail'
     exit 127
   else
-    puts("WTF MAN")
+    puts('WTF MAN')
     exit 2
 end

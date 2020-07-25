@@ -21,16 +21,20 @@ hangcheckc: hangcheck.c
 
 check: hangcheckc
 	@echo "ruby"
-	./hangcheck ./fixture succeed 2
+	echo "0" > /tmp/failcount
+	./hangcheck ./fixture 2
 	@echo
 	@echo "c"
-	./hangcheckc ./fixture succeed 2
+	echo "0" > /tmp/failcount
+	./hangcheckc ./fixture 2
 	@echo
 	@echo "ruby"
-	./hangcheck ./fixture fail 2
+	echo "1" > /tmp/failcount
+	./hangcheck ./fixture 2
 	@echo
 	@echo "c"
-	./hangcheckc ./fixture fail 2
+	echo "1" > /tmp/failcount
+	./hangcheckc ./fixture 2
 
 clean:
 	rm -rvf hangcheckc `cat .gitignore | sed -e 's/#.*//'`

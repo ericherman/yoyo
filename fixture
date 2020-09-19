@@ -1,20 +1,20 @@
 #!/usr/bin/env ruby
+#
+# The environment variable FAILCOUNT should have the filename of a state file
+# that has the number of times fixture should crash with exit code 127 before
+# succeeding.
 
-if ARGV.size != 1
-  puts('Usage: fixture delay')
-  puts('create a /tmp/failcount file first or it will just succeed')
-  exit 1
-end
+failcount_file = ENV['FAILCOUNT']
 
 action = 'succeed'
 delay = ARGV[0].to_i
 
-if File.exist?('/tmp/failcount')
-  failcount = File.read('/tmp/failcount').to_i
+if File.exist?(failcount_file)
+  failcount = File.read(failcount_file).to_i
   if failcount == 0
     action = 'succeed'
   else
-    File.open('/tmp/failcount', 'w') { |f| f.puts(failcount - 1) }
+    File.open(failcount_file, 'w') { |f| f.puts(failcount - 1) }
     action = 'fail'
   end
 end

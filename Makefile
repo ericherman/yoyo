@@ -11,6 +11,7 @@ CFLAGS += -g -DNDEBUG -O2 \
     -pipe
 
 SHELL=/bin/bash
+FAILCOUNT:=$(shell mktemp)
 
 # extracted from https://github.com/torvalds/linux/blob/master/scripts/Lindent
 LINDENT=indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1 -il0
@@ -21,20 +22,21 @@ hangcheckc: hangcheck.c
 
 check: hangcheckc
 	@echo "ruby"
-	echo "0" > /tmp/failcount
-	./hangcheck ./fixture 2
+	echo "0" > $(FAILCOUNT)
+	FAILCOUNT=$(FAILCOUNT) ./hangcheck ./fixture 2
 	@echo
 	@echo "c"
-	echo "0" > /tmp/failcount
-	./hangcheckc ./fixture 2
+	echo "0" > $(FAILCOUNT)
+	FAILCOUNT=$(FAILCOUNT) ./hangcheckc ./fixture 2
 	@echo
 	@echo "ruby"
-	echo "1" > /tmp/failcount
-	./hangcheck ./fixture 2
+	echo "1" > $(FAILCOUNT)
+	FAILCOUNT=$(FAILCOUNT) ./hangcheck ./fixture 2
 	@echo
 	@echo "c"
-	echo "1" > /tmp/failcount
-	./hangcheckc ./fixture 2
+	echo "1" > $(FAILCOUNT)
+	FAILCOUNT=$(FAILCOUNT) ./hangcheckc ./fixture 2
+	rm -f $(FAILCOUNT)
 
 clean:
 	rm -rvf hangcheckc `cat .gitignore | sed -e 's/#.*//'`

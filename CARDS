@@ -1,8 +1,5 @@
 "maybe retry" means "retry if the child has been spawned < 5 times"
 
-- consider environment variable for tmpfile name
-	- just affects fixture script & makefile, not the program
-
 Program should:
 1- have a name other than "hangcheck"
 2- catch sigchld

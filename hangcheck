@@ -14,7 +14,7 @@ if childpid # WE IS PARENT
   Signal.trap("CHLD") do
     puts("Child died (or stopped but let's ignore that)")
     Process.wait(childpid)
-    puts("Child process::status: #{$?}")
+    puts("Child process #{$?}")
     exit 0
   end
   loop do

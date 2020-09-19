@@ -1,7 +1,19 @@
-- consider environment variable for tmpfile name
-- catch sigchld, exit code 0? exit with success
-- catch sigchld, exit code != 0? retry maybe
-- look at thread state & user/system time
-	- if it's stuck, kill & retry maybe
-	- if it's doing something worthwhile, let it abide
+"maybe retry" means "retry if the child has been spawned < 5 times"
 
+- consider environment variable for tmpfile name
+	- just affects fixture script & makefile, not the program
+
+Program should:
+1- have a name other than "hangcheck"
+2- catch sigchld
+	- check exit code:
+		- 0? exit with success
+		- !0? record result and maybe retry
+3- look at child process thread state & user/system time
+	- inspect /proc/$PID/task/*/stat
+	- fields PID, STATE, UTIME, STIME
+	- if thread list is different from before, reset the hung counter
+	- if any thread is not in "S" state, reset the HC
+	- if UTIME or STIME has increased by > 1 in any thread, reset HC
+	- memorize current UTIME and STIME for all threads, increment HC
+	- if HC >= 5, kill child, record result, maybe retry

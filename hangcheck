@@ -19,7 +19,6 @@ while retries_left > 0
 
   if childpid # WE IS PARENT
     Signal.trap("CHLD") do
-      puts("Child died (or stopped but let's ignore that)")
       Process.wait(childpid)
       unless $?.exited?
         puts("Child wait completed but it has not exited, WTF?")

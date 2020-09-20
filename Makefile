@@ -17,30 +17,30 @@ FAILCOUNT:=$(shell mktemp --tmpdir=. --suffix=.failcount)
 LINDENT=indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1 -il0
 # see also: https://www.kernel.org/doc/Documentation/process/coding-style.rst
 
-hangcheckc: hangcheck.c
+yoyoc: yoyo.c
 	$(CC) $(CFLAGS) $< -o $@
 
-check: hangcheckc
+check: yoyoc
 	@echo "ruby"
 	echo "0" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./hangcheck ./fixture 2
+	FAILCOUNT=$(FAILCOUNT) ./yoyo ./fixture 2
 	@echo
 	@echo "c"
 	echo "0" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./hangcheckc ./fixture 2
+	FAILCOUNT=$(FAILCOUNT) ./yoyoc ./fixture 2
 	@echo
 	@echo "ruby"
 	echo "1" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./hangcheck ./fixture 2
+	FAILCOUNT=$(FAILCOUNT) ./yoyo ./fixture 2
 	@echo
 	@echo "c"
 	echo "1" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./hangcheckc ./fixture 2
+	FAILCOUNT=$(FAILCOUNT) ./yoyoc ./fixture 2
 	@echo
 	rm -fv $(FAILCOUNT)
 
 clean:
-	rm -rvf hangcheckc *.failcount `cat .gitignore | sed -e 's/#.*//'`
+	rm -rvf yoyoc *.failcount `cat .gitignore | sed -e 's/#.*//'`
 
 mrproper:
 	git clean -dffx

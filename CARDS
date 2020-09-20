@@ -1,7 +1,6 @@
 "maybe retry" means "retry if the child has been spawned < 5 times"
 
 Program should:
-1- have a name other than "hangcheck"
 2- catch sigchld
 	- check exit code:
 		- 0? exit with success

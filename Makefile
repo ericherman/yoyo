@@ -11,7 +11,7 @@ CFLAGS += -g -DNDEBUG -O2 \
     -pipe
 
 SHELL=/bin/bash
-FAILCOUNT:=$(shell mktemp)
+FAILCOUNT:=$(shell mktemp --tmpdir=. --suffix=.failcount)
 
 # extracted from https://github.com/torvalds/linux/blob/master/scripts/Lindent
 LINDENT=indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1 -il0
@@ -36,10 +36,11 @@ check: hangcheckc
 	@echo "c"
 	echo "1" > $(FAILCOUNT)
 	FAILCOUNT=$(FAILCOUNT) ./hangcheckc ./fixture 2
-	rm -f $(FAILCOUNT)
+	@echo
+	rm -fv $(FAILCOUNT)
 
 clean:
-	rm -rvf hangcheckc `cat .gitignore | sed -e 's/#.*//'`
+	rm -rvf hangcheckc *.failcount `cat .gitignore | sed -e 's/#.*//'`
 
 mrproper:
 	git clean -dffx

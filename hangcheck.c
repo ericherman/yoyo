@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 /* hosted headers */
+#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,36 +29,63 @@
 #define MAX_RETRIES 5
 #endif
 
-#ifndef VERBOSE
-#define VERBOSE 0
-#endif
-
 #define Errnof(format, ...) \
 	errnof(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
 
-/* prototypes */
-static void do_parent(unsigned int *retries_remaining, pid_t childpid);
+struct exit_reason {
+	pid_t child_pid;
+	int wait_status;
+	int exited;
+	int exit_code;
+	int signaled;
+	int termsig;
+	int coredump;
+	int stopped;
+	int stopsig;
+	int continued;
+};
 
-int process_looks_hung(pid_t pid);
-
-int exit_reason(pid_t child_pid, int wait_status, int *exit_code, char *buf,
-		size_t buf_len);
-
-void errnof(const char *file, int line, const char *format, ...);
-
+/* function prototypes */
+/* append to a string buffer, always NULL-terminates */
 int appendf(char *buf, size_t bufsize, const char *format, ...);
 
-/* the POSIX definition of "signal()" does not allow for a context parameter:
+/* print an error message, include the errno information */
+void errnof(const char *file, int line, const char *format, ...);
+
+/* trap child exits, and capture the exit_reason information */
+void exit_reason_child_trap(int sig);
+
+/* zero the struct */
+void exit_reason_clear(struct exit_reason *exit_reason);
+
+/* populate the struct from the wait_status */
+void exit_reason_set(struct exit_reason *exit_reason, pid_t pid,
+		     int wait_status);
+
+/* populate buf with a human-friendly-ish description of the exit_reason */
+void exit_reason_to_str(struct exit_reason *exit_reason, char *buf, size_t len);
+
+/* monitor a child process; signal the process if it looks hung */
+static void monitor_child_for_hang(pid_t childpid, struct exit_reason *reason,
+				   unsigned max_hangs,
+				   unsigned hang_check_interval);
+
+/* look for evidence of a hung process, not yet implemented */
+int process_looks_hung(pid_t pid);
+
+/* globals */
+/* The POSIX definition of "signal()" does not allow for a context parameter:
+
 	#include <signal.h>
 
-       typedef void (*sighandler_t)(int);
+	typedef void (*sighandler_t)(int);
 
-       sighandler_t signal(int signum, sighandler_t handler);
+	sighandler_t signal(int signum, sighandler_t handler);
 
-  thus, we will need a global variable to pass data between functions. */
-/* globals */
-
-static int child_trap_exit_code_singleton;
+  Thus, we will need some global space to pass data between functions.
+*/
+static struct exit_reason *child_trap_exit_code_singleton;
+static int global_verbose;
 
 /* functions */
 int main(int argc, char **argv)
@@ -67,21 +95,47 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	unsigned int retries_remaining = MAX_RETRIES;
-	while (retries_remaining > 0) {
-		child_trap_exit_code_singleton = INT_MIN;
+	// setup globals for sharing data with signal handler
+	char *verbosenv = getenv("VERBOSE");
+	global_verbose = verbosenv ? atoi(verbosenv) : 0;
+
+	struct exit_reason reason;
+	child_trap_exit_code_singleton = &reason;
+
+	// now that globals are setup, set the handler
+	signal(SIGCHLD, &exit_reason_child_trap);
+
+	for (int retries_remaining = MAX_RETRIES;
+	     retries_remaining > 0; --retries_remaining) {
+
+		// reset our exit reason prior to each fork
+		exit_reason_clear(&reason);
+
 		pid_t childpid = fork();
 
 		if (childpid < 0) {
 			Errnof("fork() failed?");
 			exit(EXIT_FAILURE);
-		} else if (childpid > 0) {
-			do_parent(&retries_remaining, childpid);
-		} else {
-			// shift-off this program and exec the rest:
+		} else if (childpid == 0) {
+			// in child process
+			// shift-off this program and exec the rest
+			// of the commandline
 			char **rest = argv + 1;
 			int rv = execv(rest[0], rest);
 			exit(rv);
+		}
+
+		monitor_child_for_hang(childpid, &reason, MAX_RETRIES,
+				       HANG_CHECK_INTERVAL);
+
+		assert(reason.exited);
+
+		if (reason.exit_code != 0) {
+			printf("Child exited with status %d\n",
+			       reason.exit_code);
+		} else {
+			printf("Child completed successfully\n");
+			exit(EXIT_SUCCESS);
 		}
 	}
 
@@ -90,56 +144,46 @@ int main(int argc, char **argv)
 	return EXIT_FAILURE;
 }
 
+// FIXXXME: TODO
 int process_looks_hung(pid_t pid)
 {
 	return 0;
 }
 
-void child_trap(int sig)
+void exit_reason_child_trap(int sig)
 {
-	if (VERBOSE) {
-		printf("child_trap(%d)\n", sig);
+	if (global_verbose) {
+		printf("exit_reason_child_trap(%d)\n", sig);
 	}
-	int wstatus = 0;
-	int options = 0;
+
 	pid_t any_child = -1;
-	pid_t pid = waitpid(any_child, &wstatus, options);
+	int wait_status = 0;
+	int options = 0;
+	pid_t pid = waitpid(any_child, &wait_status, options);
 
-	size_t len = 255;
-	char buf[len];
-	int *exit_code_ptr = &child_trap_exit_code_singleton;
-	int exited = exit_reason(pid, wstatus, exit_code_ptr, buf, len);
+	exit_reason_set(child_trap_exit_code_singleton, pid, wait_status);
 
-	if (VERBOSE) {
+	if (global_verbose) {
+		size_t len = 255;
+		char buf[len];
+		exit_reason_to_str(child_trap_exit_code_singleton, buf, len);
 		printf("%s\n", buf);
-	}
-
-	if (exited) {
-		if (child_trap_exit_code_singleton == 0) {
-			printf("Child completed successfully\n");
-			exit(EXIT_SUCCESS);
-		} else {
-			printf("Child exited with status %d\n",
-			       child_trap_exit_code_singleton);
-		}
 	}
 }
 
-static void do_parent(unsigned int *retries_remaining, pid_t childpid)
+static void monitor_child_for_hang(pid_t childpid, struct exit_reason *reason,
+				   unsigned max_hangs,
+				   unsigned hang_check_interval)
 {
-	signal(SIGCHLD, &child_trap);
-	int hang_count = 0;
-	for (;;) {
-		if (child_trap_exit_code_singleton != INT_MIN) {
-			--(*retries_remaining);
-			break;
-		}
-		unsigned int seconds = HANG_CHECK_INTERVAL;
+	unsigned int hang_count = 0;
+	while (!reason->exited) {
+		unsigned int seconds = hang_check_interval;
 		unsigned int remain = sleep(seconds);
-		(void)remain;	// ignore
+		(void)remain;	// ignore, maybe interrupted by a handler?
+
 		if (process_looks_hung(childpid)) {
 			++hang_count;
-			int sig = hang_count > MAX_HANGS ? SIGTERM : SIGKILL;
+			int sig = hang_count > max_hangs ? SIGTERM : SIGKILL;
 			int err = kill(childpid, sig);
 			if (err) {
 				Errnof("kill(childpid, %d) returned %d?", sig,
@@ -185,44 +229,65 @@ void errnof(const char *file, int line, const char *format, ...)
 		strerror(_errnof_save));
 }
 
-int exit_reason(pid_t child_pid, int wait_status, int *exit_code, char *buf,
-		size_t bufsize)
+void exit_reason_clear(struct exit_reason *reason)
 {
-	memset(buf, 0x00, bufsize);
-	appendf(buf, bufsize, "child pid %d", child_pid);
+	memset(reason, 0x00, sizeof(struct exit_reason));
+}
 
-	int exited = WIFEXITED(wait_status);
-	if (exited) {
-		appendf(buf, bufsize, " terminated normally");
-		*exit_code = WEXITSTATUS(wait_status);
-		appendf(buf, bufsize, " exit code: %d", *exit_code);
+void exit_reason_set(struct exit_reason *reason, pid_t pid, int wait_status)
+{
+	exit_reason_clear(reason);
+
+	reason->child_pid = pid;
+	reason->wait_status = wait_status;
+
+	reason->exited = WIFEXITED(reason->wait_status);
+	if (reason->exited) {
+		reason->exit_code = WEXITSTATUS(reason->wait_status);
 	}
-
-	int signaled = WIFSIGNALED(wait_status);
-	if (signaled) {
-		appendf(buf, bufsize, " terminated by a signal");
-		int termsig = WTERMSIG(wait_status);
-		if (termsig) {
-			appendf(buf, bufsize, " %d", termsig);
-		}
+	reason->signaled = WIFSIGNALED(reason->wait_status);
+	if (reason->signaled) {
+		reason->termsig = WTERMSIG(reason->wait_status);
 #ifdef WCOREDUMP
-		if (WCOREDUMP(wait_status)) {
-			appendf(buf, bufsize, " produced a core dump");
-		}
+		reason->coredump = WCOREDUMP(reason->wait_status);
 #endif
 	}
+	reason->stopped = WIFSTOPPED(reason->wait_status);
+	if (reason->stopped) {
+		reason->stopsig = WSTOPSIG(reason->wait_status);
+	}
+	reason->continued = WIFCONTINUED(reason->wait_status);
+}
 
-	if (WIFSTOPPED(wait_status)) {
-		appendf(buf, bufsize, " stopped (WUNTRACED? ptrace?)");
-		int stopsig = WSTOPSIG(wait_status);
-		if (stopsig) {
-			appendf(buf, bufsize, " stop signal: %d", stopsig);
+void exit_reason_to_str(struct exit_reason *reason, char *buf, size_t bufsize)
+{
+	memset(buf, 0x00, bufsize);
+	appendf(buf, bufsize, "child pid %d", reason->child_pid);
+
+	if (reason->exited) {
+		appendf(buf, bufsize, " terminated normally");
+		appendf(buf, bufsize, " exit code: %d", reason->exit_code);
+	}
+
+	if (reason->signaled) {
+		appendf(buf, bufsize, " terminated by a signal");
+		if (reason->termsig) {
+			appendf(buf, bufsize, " %d", reason->termsig);
+		}
+		if (reason->coredump) {
+			appendf(buf, bufsize, " produced a core dump");
 		}
 	}
 
-	if (WIFCONTINUED(wait_status)) {
-		appendf(buf, bufsize, " was resumed by SIGCONT");
+	if (reason->stopped) {
+		appendf(buf, bufsize, " stopped (WUNTRACED? ptrace?)");
+		if (reason->stopsig) {
+			appendf(buf, bufsize, " stop signal: %d",
+				reason->stopsig);
+		}
 	}
 
-	return exited;
+	if (reason->continued) {
+		appendf(buf, bufsize, " was resumed by SIGCONT");
+	}
 }

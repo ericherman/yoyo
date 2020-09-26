@@ -8,7 +8,7 @@ Program should:
 		- !0? record result and maybe retry
 3- look at child process thread state & user/system time
 	- inspect /proc/$PID/task/*/stat
-	- fields PID, STATE, UTIME, STIME
+	- fields (thread ID is directory name) STATE, UTIME, STIME
 	- if thread list is different from before, reset the hung counter
 	- if any thread is not in "S" state, reset the HC
 	- if UTIME or STIME has increased by > 1 in any thread, reset HC

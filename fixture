@@ -26,6 +26,8 @@ case action
     exit 0
   when 'fail'
     exit 127
+  when 'hang'
+    sleep(1000)
   else
     puts('WTF MAN')
     exit 2

@@ -1,18 +1,47 @@
 #!/usr/bin/env ruby
 
-HANG_CHECK_INTERVAL = 5
-HANG_COUNT = 5
+HANG_CHECK_INTERVAL = 2
+MAX_HANG_COUNT = 5
 MAX_RETRIES = 5
 
 commandline = ARGV.join(' ')
 
+threadStates = nil
+
+REAL_SCANF = "%*d %*s %c %*d %*d %*d %*d %*d %*u %*lu %*lu %*lu %*lu %lu %lu"
+STAT_SCANF = REAL_SCANF.gsub(/l/, '') # ruby scanf does not savvy 'l'
+
 def process_looks_hung(pid)
-  false
+  threads = Dir.glob("/proc/#{pid}/task/*/stat")
+  currentThreadStates = {}
+  all_sleeping = true
+  threads.each do |threaddir|
+    state, utime, stime = File.read(threaddir).scanf(STAT_SCANF)
+    all_sleeping = false unless state == 'S'
+    currentThreadStates[threaddir] = [utime, stime]
+  end
+  unless all_sleeping
+    threadStates = nil
+    return false
+  end
+  unless threadStates
+    threadStates = currentThreadStates
+    return false
+  end
+  if threadStates.keys.sort != currentThreadStates.keys.sort
+    threadStates = currentThreadStates
+    return false
+  end
+  # ERIC: please compare contents of all thread states, and do somethninng smart
+  # depending on whether any number has gone up by more than one. KTHXBAI
+  #  PS  in C
+
 end
 
 retries_left = MAX_RETRIES
 
 while retries_left > 0
+  hang_count = 0
   retries_left -= 1
   childpid = Process.fork
   child_exitstatus = nil
@@ -32,10 +61,12 @@ while retries_left > 0
       child_exitstatus = $?.exitstatus
     end
     until child_exitstatus do
-      sleep HANG_CHECK_INTERVAL
+      sleep(HANG_CHECK_INTERVAL)
       if process_looks_hung(childpid)
-        Process.kill(childpid)
+        hang_count += 1
+        Process.kill(childpid) if hang_count > MAX_HANG_COUNT
       else
+        hang_count = 0
         puts("Child still appears to be doing something worthwhile")
       end
     end

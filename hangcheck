@@ -32,10 +32,18 @@ def process_looks_hung(pid)
     threadStates = currentThreadStates
     return false
   end
-  # ERIC: please compare contents of all thread states, and do somethninng smart
-  # depending on whether any number has gone up by more than one. KTHXBAI
-  #  PS  in C
-
+  possibly_hung = true
+  threadStates.keys.each do |thread|
+    oldUser, oldSystem = threadStates[thread]
+    curUser, curSystem = currentThreadStates[thread]
+    if (curUser > (oldUser + 1)) || (curSystem > (oldSystem + 1))
+      possibly_hung = false
+      threadStates = nil
+      return false
+    end
+  end
+  threadStates = currentThreadStates
+  true
 end
 
 retries_left = MAX_RETRIES

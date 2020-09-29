@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+require 'scanf'
+
 HANG_CHECK_INTERVAL = 2
 MAX_HANG_COUNT = 5
 MAX_RETRIES = 5

@@ -403,7 +403,8 @@ end
 
 # END SCANF CODE
 
-HANG_CHECK_INTERVAL = 2
+
+HANG_CHECK_INTERVAL = 60
 MAX_HANG_COUNT = 5
 MAX_RETRIES = 5
 
@@ -411,17 +412,17 @@ commandline = ARGV.join(' ')
 
 threadStates = nil
 
-REAL_SCANF = "%*d %*s %c %*d %*d %*d %*d %*d %*u %*lu %*lu %*lu %*lu %lu %lu"
+REAL_SCANF = "%d %*s %c %*d %*d %*d %*d %*d %*u %*lu %*lu %*lu %*lu %lu %lu"
 STAT_SCANF = REAL_SCANF.gsub(/l/, '') # ruby scanf does not savvy 'l'
 
 def process_looks_hung(pid)
-  threads = Dir.glob("/proc/#{pid}/task/*/stat")
-  currentThreadStates = {}
+  threads = Dir.glob("/proc/#{pid}/task/*/stat").sort
+  currentThreadStates = []
   all_sleeping = true
-  threads.each do |threaddir|
-    state, utime, stime = File.read(threaddir).scanf(STAT_SCANF)
+  threads.each_with_index do |threaddir, idx|
+    pid, state, utime, stime = File.read(threaddir).scanf(STAT_SCANF)
     all_sleeping = false unless state == 'S'
-    currentThreadStates[threaddir] = [utime, stime]
+    currentThreadStates[idx] = [pid, utime, stime]
   end
   unless all_sleeping
     threadStates = nil
@@ -431,16 +432,18 @@ def process_looks_hung(pid)
     threadStates = currentThreadStates
     return false
   end
-  if threadStates.keys.sort != currentThreadStates.keys.sort
+  if threadStates.length != currentThreadStates.length
     threadStates = currentThreadStates
     return false
   end
-  possibly_hung = true
-  threadStates.keys.each do |thread|
-    oldUser, oldSystem = threadStates[thread]
-    curUser, curSystem = currentThreadStates[thread]
+  for idx in 0..(threadStates.length - 1) do
+    oldPid, oldUser, oldSystem = threadStates[idx]
+    curPid, curUser, curSystem = currentThreadStates[idx]
+    if oldPid != curPid
+      threadStates = currentThreadStates
+      return false
+    end
     if (curUser > (oldUser + 1)) || (curSystem > (oldSystem + 1))
-      possibly_hung = false
       threadStates = nil
       return false
     end
@@ -478,7 +481,6 @@ while retries_left > 0
         Process.kill(childpid) if hang_count > MAX_HANG_COUNT
       else
         hang_count = 0
-        puts("Child still appears to be doing something worthwhile")
       end
     end
   else # WE IS CHILD

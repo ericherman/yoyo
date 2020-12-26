@@ -20,6 +20,9 @@ LINDENT=indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1 -il0
 yoyoc: yoyo.c
 	$(CC) $(CFLAGS) $< -o $@
 
+globdemo: globdemo.c
+	$(CC) $(CFLAGS) $< -o $@
+
 check: yoyoc
 	@echo "ruby"
 	echo "0" > $(FAILCOUNT)

@@ -10,6 +10,7 @@
 /* hosted headers */
 #include <assert.h>
 #include <errno.h>
+#include <glob.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>		/* strerror */
@@ -29,8 +30,38 @@
 #define MAX_RETRIES 5
 #endif
 
-#define Errnof(format, ...) \
-	errnof(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
+#define Errorf(format, ...) \
+	errorf(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
+
+#ifndef Calloc_or_die
+#define Calloc_or_die(pptr, n_members, size_each) \
+	do { \
+		size_t _codie_nmeb = (n_members); \
+		size_t _codie_size = (size_each); \
+		void *_codie_ptr = calloc(_codie_nmeb, _codie_size); \
+		if (!_codie_ptr) { \
+			size_t _codie_tot = (_codie_nmeb * _codie_size); \
+			Errorf("could not calloc(%zu, %zu)" \
+				" (%zu bytes) for %s?", \
+				_codie_nmeb, _codie_size, _codie_tot, #pptr); \
+			exit(EXIT_FAILURE); \
+		} \
+		*(pptr) = _codie_ptr; \
+	} while (0)
+#endif
+
+struct thread_state {
+	long pid;
+	char state;
+	unsigned long utime;
+	unsigned long stime;
+};
+
+struct state_list {
+	struct thread_state *states;
+	size_t len;
+	size_t pos;
+};
 
 struct exit_reason {
 	pid_t child_pid;
@@ -46,11 +77,24 @@ struct exit_reason {
 };
 
 /* function prototypes */
+
+/* look for evidence of a hung process */
+int process_looks_hung(pid_t pid);
+
+/* given a pid, populate the state_list */
+int get_states(struct state_list *states, pid_t pid);
+
+/* add the state to list, allocates more space if needed */
+int state_list_append(struct state_list *l, struct thread_state state);
+
+/* null-safe; frees the states as well as the state_list struct */
+void state_list_free(struct state_list *l);
+
 /* append to a string buffer, always NULL-terminates */
 int appendf(char *buf, size_t bufsize, const char *format, ...);
 
-/* print an error message, include the errno information */
-void errnof(const char *file, int line, const char *format, ...);
+/* print an error message, include the errno information if non-zero */
+void errorf(const char *file, int line, const char *format, ...);
 
 /* trap child exits, and capture the exit_reason information */
 void exit_reason_child_trap(int sig);
@@ -70,10 +114,10 @@ static void monitor_child_for_hang(pid_t childpid, struct exit_reason *reason,
 				   unsigned max_hangs,
 				   unsigned hang_check_interval);
 
-/* look for evidence of a hung process, not yet implemented */
-int process_looks_hung(pid_t pid);
-
+/*************************************************************************/
 /* globals */
+/*************************************************************************/
+
 /* The POSIX definition of "signal()" does not allow for a context parameter:
 
 	#include <signal.h>
@@ -85,8 +129,12 @@ int process_looks_hung(pid_t pid);
   Thus, we will need some global space to pass data between functions.
 */
 static struct exit_reason *child_trap_exit_code_singleton;
+
 static int global_verbose;
 
+struct state_list *threadStates = NULL;
+
+/*************************************************************************/
 /* functions */
 int main(int argc, char **argv)
 {
@@ -105,24 +153,27 @@ int main(int argc, char **argv)
 	// now that globals are setup, set the handler
 	signal(SIGCHLD, &exit_reason_child_trap);
 
+	int rv = EXIT_FAILURE;
 	for (int retries_remaining = MAX_RETRIES;
 	     retries_remaining > 0; --retries_remaining) {
 
 		// reset our exit reason prior to each fork
 		exit_reason_clear(&reason);
 
+		errno = 0;
 		pid_t childpid = fork();
 
 		if (childpid < 0) {
-			Errnof("fork() failed?");
-			exit(EXIT_FAILURE);
+			Errorf("fork() failed?");
+			rv = EXIT_FAILURE;
+			goto end_main;
 		} else if (childpid == 0) {
 			// in child process
 			// shift-off this program and exec the rest
 			// of the commandline
 			char **rest = argv + 1;
-			int rv = execv(rest[0], rest);
-			exit(rv);
+			rv = execv(rest[0], rest);
+			goto end_main;
 		}
 
 		monitor_child_for_hang(childpid, &reason, MAX_RETRIES,
@@ -135,19 +186,215 @@ int main(int argc, char **argv)
 			       reason.exit_code);
 		} else {
 			printf("Child completed successfully\n");
-			exit(EXIT_SUCCESS);
+			rv = EXIT_SUCCESS;
+			goto end_main;
 		}
 	}
 
 	fflush(stdout);
 	fprintf(stderr, "Retries limit reached.\n");
-	return EXIT_FAILURE;
+	rv = EXIT_FAILURE;
+
+end_main:
+	state_list_free(threadStates);
+	threadStates = NULL;
+	return rv;
 }
 
-// FIXXXME: TODO
 int process_looks_hung(pid_t pid)
 {
+	struct state_list *currentThreadStates;
+	Calloc_or_die(&currentThreadStates, 1, sizeof(struct state_list));
+
+	errno = 0;
+	int err = get_states(currentThreadStates, pid);
+	if (err) {
+		Errorf("get_states(%ld) returned error: %d", (long)pid, err);
+	}
+
+	int all_sleeping = 1;
+	for (size_t i = 0; all_sleeping && i < currentThreadStates->pos; ++i) {
+		if (currentThreadStates->states[i].state != 'S') {
+			all_sleeping = 0;
+		}
+	}
+	if (!all_sleeping) {
+		state_list_free(currentThreadStates);
+		state_list_free(threadStates);
+		threadStates = NULL;
+		return 0;
+	}
+
+	if (!threadStates || threadStates->pos != currentThreadStates->pos) {
+		state_list_free(threadStates);
+		threadStates = currentThreadStates;
+		return 0;
+	}
+
+	for (size_t i = 0; i < currentThreadStates->pos; ++i) {
+		struct thread_state old_state = threadStates->states[i];
+		struct thread_state new_state = currentThreadStates->states[i];
+
+		if ((old_state.pid != new_state.pid)
+		    || (new_state.utime > (old_state.utime + 1))
+		    || (new_state.stime > (old_state.stime + 1))
+		    ) {
+			state_list_free(currentThreadStates);
+			state_list_free(threadStates);
+			threadStates = NULL;
+			return 0;
+		}
+	}
+
+	state_list_free(threadStates);
+	threadStates = currentThreadStates;
+	return 1;
+}
+
+static char *pid_to_stat_pattern(char *buf, pid_t pid)
+{
+	strcpy(buf, "/proc/");
+	/* According to POSIX, pid_t is a signed int no wider than long */
+	sprintf(buf + strlen(buf), "%ld", (long)pid);
+	strcat(buf, "/task/*/stat");
+	return buf;
+}
+
+static char *slurp_text(char *buf, size_t buflen, const char *path)
+{
+	if (!buf || !buflen) {
+		return NULL;
+	}
+	memset(buf, 0x00, buflen);
+
+	if (!path) {
+		return NULL;
+	}
+
+	FILE *f = fopen(path, "r");
+	if (!f) {
+		return NULL;
+	}
+
+	errno = 0;
+	if (fseek(f, 0, SEEK_END)) {
+		Errorf("seek(f, 0, SEEK_END) failure?");
+	}
+
+	errno = 0;
+	long length = ftell(f);
+	if (length <= 0) {
+		Errorf("ftell returned %ld?", length);
+		buf = NULL;
+	} else {
+		unsigned long ulength = (unsigned long)length;
+		size_t bytes = (ulength < buflen) ? ulength : buflen - 1;
+
+		errno = 0;
+		if (fseek(f, 0, SEEK_SET)) {
+			Errorf("seek(f, 0, SEEK_SET) failure?");
+		}
+
+		errno = 0;
+		size_t n = fread(buf, 1, bytes, f);
+		if (n != ulength) {
+			Errorf("only read %zu of %lu bytes from %s", n, ulength,
+			       path);
+			buf = NULL;
+		}
+	}
+
+	fclose(f);
+	return buf;
+}
+
+int thread_state_from_path(struct thread_state *ts, const char *path)
+{
+	unsigned fields = 60;
+	const size_t buf_len = FILENAME_MAX + (fields * (sizeof(long) + 1));
+	char buf[buf_len];
+	errno = 0;
+	if (!slurp_text(buf, buf_len, path)) {
+		if (global_verbose || errno != ENOENT) {
+			Errorf("slurp_text failed?");
+		}
+		return 4;
+	}
+
+	const char *stat_scanf =
+	    "%d %*s %c %*d %*d %*d %*d %*d %*u %*lu %*lu %*lu %*lu %lu %lu";
+	errno = 0;
+	int matched = sscanf(buf, stat_scanf, &ts->pid, &ts->state, &ts->utime,
+			     &ts->stime);
+	if (matched != 4) {
+		Errorf("only matched %d for %s", matched, path);
+	}
+
+	return (4 - matched);
+}
+
+int state_list_append(struct state_list *l, struct thread_state state)
+{
+	if (!l) {
+		return 1;
+	}
+
+	if (l->pos >= l->len) {
+		size_t state_size = sizeof(struct thread_state);
+		struct thread_state *old_states = l->states;
+		size_t old_len = l->len;
+		size_t new_len = old_len < 64 ? 64 : old_len * 2;
+
+		struct thread_state *new_states;
+		Calloc_or_die(&new_states, new_len, state_size);
+
+		memcpy(new_states, old_states, old_len * state_size);
+		l->states = new_states;
+		l->len = new_len;
+
+		free(old_states);
+	}
+
+	l->states[l->pos++] = state;
 	return 0;
+}
+
+void state_list_free(struct state_list *l)
+{
+	if (l) {
+		free(l->states);
+		free(l);
+	}
+}
+
+/* errno ENOENT: No such file or directory */
+int ignore_no_such_file(const char *epath, int eerrno)
+{
+	if (global_verbose || errno != ENOENT) {
+		Errorf("%s (%d)", epath, eerrno);
+	}
+	return 0;
+}
+
+int get_states(struct state_list *states, pid_t pid)
+{
+	char pattern[FILENAME_MAX + 3];
+	pid_to_stat_pattern(pattern, pid);
+	int (*errfunc)(const char *epath, int eerrno) = NULL;
+	glob_t threads;
+	errno = 0;
+	glob(pattern, GLOB_MARK, errfunc, &threads);
+	int err = 0;
+	for (size_t i = 0; i < threads.gl_pathc; ++i) {
+		const char *path = threads.gl_pathv[i];
+		struct thread_state ts;
+		if (thread_state_from_path(&ts, path) == 0) {
+			err += state_list_append(states, ts);
+		}
+	}
+
+	globfree(&threads);
+	return err;
 }
 
 void exit_reason_child_trap(int sig)
@@ -159,6 +406,7 @@ void exit_reason_child_trap(int sig)
 	pid_t any_child = -1;
 	int wait_status = 0;
 	int options = 0;
+
 	pid_t pid = waitpid(any_child, &wait_status, options);
 
 	exit_reason_set(child_trap_exit_code_singleton, pid, wait_status);
@@ -171,7 +419,8 @@ void exit_reason_child_trap(int sig)
 	}
 }
 
-static void monitor_child_for_hang(pid_t childpid, struct exit_reason *reason,
+static void monitor_child_for_hang(pid_t childpid,
+				   struct exit_reason *reason,
 				   unsigned max_hangs,
 				   unsigned hang_check_interval)
 {
@@ -180,13 +429,16 @@ static void monitor_child_for_hang(pid_t childpid, struct exit_reason *reason,
 		unsigned int seconds = hang_check_interval;
 		unsigned int remain = sleep(seconds);
 		(void)remain;	// ignore, maybe interrupted by a handler?
-
 		if (process_looks_hung(childpid)) {
 			++hang_count;
 			int sig = hang_count > max_hangs ? SIGTERM : SIGKILL;
+			errno = 0;
 			int err = kill(childpid, sig);
-			if (err) {
-				Errnof("kill(childpid, %d) returned %d?", sig,
+			/* ESRCH: No such process */
+			if (err && (errno != ESRCH || global_verbose)) {
+				const char *sigstr =
+				    (sig == SIGTERM) ? "SIGTERM" : "SIGKILL";
+				Errorf("kill(childpid, %d) returned %d", sigstr,
 				       err);
 			}
 		} else {
@@ -204,29 +456,34 @@ int appendf(char *buf, size_t bufsize, const char *format, ...)
 	char *start = buf + used;
 
 	va_list args;
+
 	va_start(args, format);
 	int printed = vsnprintf(start, max, format, args);
 	va_end(args);
 
 	buf[bufsize - 1] = '\0';
-
 	return printed;
 }
 
-void errnof(const char *file, int line, const char *format, ...)
+void errorf(const char *file, int line, const char *format, ...)
 {
-	int _errnof_save = errno;
+	int _errorf_save = errno;
+	errno = 0;
 
 	fflush(stdout);
 	fprintf(stderr, "%s:%d ", file, line);
 
 	va_list args;
+
 	va_start(args, format);
 	vfprintf(stderr, format, args);
 	va_end(args);
 
-	fprintf(stderr, " errno %d: %s\n", _errnof_save,
-		strerror(_errnof_save));
+	if (_errorf_save) {
+		fprintf(stderr, " errno %d: %s", _errorf_save,
+			strerror(_errorf_save));
+	}
+	fprintf(stderr, "\n");
 }
 
 void exit_reason_clear(struct exit_reason *reason)
@@ -245,6 +502,7 @@ void exit_reason_set(struct exit_reason *reason, pid_t pid, int wait_status)
 	if (reason->exited) {
 		reason->exit_code = WEXITSTATUS(reason->wait_status);
 	}
+
 	reason->signaled = WIFSIGNALED(reason->wait_status);
 	if (reason->signaled) {
 		reason->termsig = WTERMSIG(reason->wait_status);
@@ -252,10 +510,12 @@ void exit_reason_set(struct exit_reason *reason, pid_t pid, int wait_status)
 		reason->coredump = WCOREDUMP(reason->wait_status);
 #endif
 	}
+
 	reason->stopped = WIFSTOPPED(reason->wait_status);
 	if (reason->stopped) {
 		reason->stopsig = WSTOPSIG(reason->wait_status);
 	}
+
 	reason->continued = WIFCONTINUED(reason->wait_status);
 }
 

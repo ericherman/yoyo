@@ -57,7 +57,6 @@ int main(int argc, char **argv)
 	return err;
 }
 
-
 int str_list_add(struct str_list *l, const char *str)
 {
 	if (!l) {

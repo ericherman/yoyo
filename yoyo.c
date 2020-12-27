@@ -60,7 +60,6 @@ struct thread_state {
 struct state_list {
 	struct thread_state *states;
 	size_t len;
-	size_t pos;
 };
 
 struct exit_reason {
@@ -81,11 +80,8 @@ struct exit_reason {
 /* look for evidence of a hung process */
 int process_looks_hung(pid_t pid);
 
-/* given a pid, populate the state_list */
-int get_states(struct state_list *states, pid_t pid);
-
-/* add the state to list, allocates more space if needed */
-int state_list_append(struct state_list *l, struct thread_state state);
+/* given a pid, create state_list */
+struct state_list *get_states(pid_t pid, int *err);
 
 /* null-safe; frees the states as well as the state_list struct */
 void state_list_free(struct state_list *l);
@@ -203,35 +199,29 @@ end_main:
 
 int process_looks_hung(pid_t pid)
 {
-	struct state_list *currentThreadStates;
-	Calloc_or_die(&currentThreadStates, 1, sizeof(struct state_list));
-
 	errno = 0;
-	int err = get_states(currentThreadStates, pid);
+	int err = 0;
+	struct state_list *currentThreadStates = get_states(pid, &err);
 	if (err) {
 		Errorf("get_states(%ld) returned error: %d", (long)pid, err);
 	}
 
-	int all_sleeping = 1;
-	for (size_t i = 0; all_sleeping && i < currentThreadStates->pos; ++i) {
+	for (size_t i = 0; i < currentThreadStates->len; ++i) {
 		if (currentThreadStates->states[i].state != 'S') {
-			all_sleeping = 0;
+			state_list_free(currentThreadStates);
+			state_list_free(threadStates);
+			threadStates = NULL;
+			return 0;
 		}
 	}
-	if (!all_sleeping) {
-		state_list_free(currentThreadStates);
-		state_list_free(threadStates);
-		threadStates = NULL;
-		return 0;
-	}
 
-	if (!threadStates || threadStates->pos != currentThreadStates->pos) {
+	if (!threadStates || threadStates->len != currentThreadStates->len) {
 		state_list_free(threadStates);
 		threadStates = currentThreadStates;
 		return 0;
 	}
 
-	for (size_t i = 0; i < currentThreadStates->pos; ++i) {
+	for (size_t i = 0; i < currentThreadStates->len; ++i) {
 		struct thread_state old_state = threadStates->states[i];
 		struct thread_state new_state = currentThreadStates->states[i];
 
@@ -318,7 +308,6 @@ int thread_state_from_path(struct thread_state *ts, const char *path)
 		if (global_verbose || errno != ENOENT) {
 			Errorf("slurp_text failed?");
 		}
-		return 4;
 	}
 
 	const char *stat_scanf =
@@ -331,32 +320,6 @@ int thread_state_from_path(struct thread_state *ts, const char *path)
 	}
 
 	return (4 - matched);
-}
-
-int state_list_append(struct state_list *l, struct thread_state state)
-{
-	if (!l) {
-		return 1;
-	}
-
-	if (l->pos >= l->len) {
-		size_t state_size = sizeof(struct thread_state);
-		struct thread_state *old_states = l->states;
-		size_t old_len = l->len;
-		size_t new_len = old_len < 64 ? 64 : old_len * 2;
-
-		struct thread_state *new_states;
-		Calloc_or_die(&new_states, new_len, state_size);
-
-		memcpy(new_states, old_states, old_len * state_size);
-		l->states = new_states;
-		l->len = new_len;
-
-		free(old_states);
-	}
-
-	l->states[l->pos++] = state;
-	return 0;
 }
 
 void state_list_free(struct state_list *l)
@@ -376,8 +339,11 @@ int ignore_no_such_file(const char *epath, int eerrno)
 	return 0;
 }
 
-int get_states(struct state_list *states, pid_t pid)
+struct state_list *get_states(pid_t pid, int *err)
 {
+	struct state_list *sl = NULL;
+	Calloc_or_die(&sl, 1, sizeof(struct state_list));
+
 	char pattern[FILENAME_MAX + 3];
 	pid_to_stat_pattern(pattern, pid);
 
@@ -386,17 +352,18 @@ int get_states(struct state_list *states, pid_t pid)
 	errno = 0;
 	glob(pattern, GLOB_MARK, errfunc, &threads);
 
-	int err = 0;
+	sl->len = threads.gl_pathc;
+	Calloc_or_die(&sl->states, sl->len, sizeof(struct thread_state));
+
 	for (size_t i = 0; i < threads.gl_pathc; ++i) {
 		const char *path = threads.gl_pathv[i];
-		struct thread_state ts;
-		if (thread_state_from_path(&ts, path) == 0) {
-			err += state_list_append(states, ts);
-		}
+		struct thread_state *ts = &sl->states[i];
+		*err += thread_state_from_path(ts, path);
 	}
 
 	globfree(&threads);
-	return err;
+
+	return sl;
 }
 
 void exit_reason_child_trap(int sig)

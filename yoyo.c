@@ -380,10 +380,12 @@ int get_states(struct state_list *states, pid_t pid)
 {
 	char pattern[FILENAME_MAX + 3];
 	pid_to_stat_pattern(pattern, pid);
-	int (*errfunc)(const char *epath, int eerrno) = NULL;
+
 	glob_t threads;
+	int (*errfunc)(const char *epath, int eerrno) = ignore_no_such_file;
 	errno = 0;
 	glob(pattern, GLOB_MARK, errfunc, &threads);
+
 	int err = 0;
 	for (size_t i = 0; i < threads.gl_pathc; ++i) {
 		const char *path = threads.gl_pathv[i];

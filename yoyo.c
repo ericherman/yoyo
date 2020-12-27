@@ -33,23 +33,6 @@
 #define Errorf(format, ...) \
 	errorf(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
 
-#ifndef Calloc_or_die
-#define Calloc_or_die(pptr, n_members, size_each) \
-	do { \
-		size_t _codie_nmeb = (n_members); \
-		size_t _codie_size = (size_each); \
-		void *_codie_ptr = calloc(_codie_nmeb, _codie_size); \
-		if (!_codie_ptr) { \
-			size_t _codie_tot = (_codie_nmeb * _codie_size); \
-			Errorf("could not calloc(%zu, %zu)" \
-				" (%zu bytes) for %s?", \
-				_codie_nmeb, _codie_size, _codie_tot, #pptr); \
-			exit(EXIT_FAILURE); \
-		} \
-		*(pptr) = _codie_ptr; \
-	} while (0)
-#endif
-
 struct thread_state {
 	long pid;
 	char state;
@@ -341,8 +324,12 @@ int ignore_no_such_file(const char *epath, int eerrno)
 
 struct state_list *get_states(pid_t pid, int *err)
 {
-	struct state_list *sl = NULL;
-	Calloc_or_die(&sl, 1, sizeof(struct state_list));
+	size_t size = sizeof(struct state_list);
+	struct state_list *sl = calloc(1, size);
+	if (!sl) {
+		Errorf("could not calloc (%zu bytes)?", size);
+		exit(EXIT_FAILURE);
+	}
 
 	char pattern[FILENAME_MAX + 3];
 	pid_to_stat_pattern(pattern, pid);
@@ -353,7 +340,14 @@ struct state_list *get_states(pid_t pid, int *err)
 	glob(pattern, GLOB_MARK, errfunc, &threads);
 
 	sl->len = threads.gl_pathc;
-	Calloc_or_die(&sl->states, sl->len, sizeof(struct thread_state));
+	size = sizeof(struct thread_state);
+	sl->states = calloc(sl->len, size);
+	if (!sl->states) {
+		size_t total = sl->len * size;
+		Errorf("could not calloc(%zu, %zu) (%zu bytes)?", sl->len, size,
+		       total);
+		exit(EXIT_FAILURE);
+	}
 
 	for (size_t i = 0; i < threads.gl_pathc; ++i) {
 		const char *path = threads.gl_pathv[i];

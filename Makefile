@@ -50,4 +50,4 @@ mrproper:
 	git submodule foreach --recursive git clean -dffx
 
 tidy:
-	$(LINDENT) *.c
+	$(LINDENT) -T FILE *.c

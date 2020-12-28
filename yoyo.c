@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <glob.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>		/* strerror */
@@ -18,20 +19,22 @@
 #include <sys/wait.h>		/* waitpid */
 #include <unistd.h>		/* execv, fork */
 
-#ifndef HANG_CHECK_INTERVAL
-#define HANG_CHECK_INTERVAL 5
-#endif
-
-#ifndef MAX_HANGS
-#define MAX_HANGS 5
-#endif
-
-#ifndef MAX_RETRIES
-#define MAX_RETRIES 5
-#endif
+#define YOYO_NAME "yoyo"
+#define YOYO_VERSION "0.0.1"
 
 #define Errorf(format, ...) \
 	errorf(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
+
+struct yoyo_options {
+	int version;
+	int help;
+	int verbose;
+	int hang_check_interval;
+	int max_hangs;
+	int max_retries;
+	const char *fakeroot;
+	char **child_command_line;
+};
 
 struct thread_state {
 	long pid;
@@ -61,10 +64,10 @@ struct exit_reason {
 /* function prototypes */
 
 /* look for evidence of a hung process */
-int process_looks_hung(pid_t pid);
+int process_looks_hung(pid_t pid, const char *fakeroot);
 
 /* given a pid, create state_list */
-struct state_list *get_states(pid_t pid, int *err);
+struct state_list *get_states(pid_t pid, const char *fakeroot, int *err);
 
 /* null-safe; frees the states as well as the state_list struct */
 void state_list_free(struct state_list *l);
@@ -91,7 +94,12 @@ void exit_reason_to_str(struct exit_reason *exit_reason, char *buf, size_t len);
 /* monitor a child process; signal the process if it looks hung */
 static void monitor_child_for_hang(pid_t childpid, struct exit_reason *reason,
 				   unsigned max_hangs,
-				   unsigned hang_check_interval);
+				   unsigned hang_check_interval,
+				   const char *fakeroot);
+
+void parse_command_line(struct yoyo_options *options, int argc, char **argv);
+
+int print_help(FILE *stream, const char *name);
 
 /*************************************************************************/
 /* globals */
@@ -122,9 +130,23 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	struct yoyo_options options;
+	parse_command_line(&options, argc, argv);
+
+	if (options.version) {
+		printf("%s version %s\n", YOYO_NAME, YOYO_VERSION);
+		return 0;
+	} else if (options.help) {
+		return print_help(stdout, argv[0]);
+	}
+	int max_retries = options.max_retries;
+	char **child_command_line = options.child_command_line;
+	int max_hangs = options.max_hangs;
+	int hang_check_interval = options.hang_check_interval;
+	const char *fakeroot = options.fakeroot;
+
 	// setup globals for sharing data with signal handler
-	char *verbosenv = getenv("VERBOSE");
-	global_verbose = verbosenv ? atoi(verbosenv) : 0;
+	global_verbose = options.verbose;
 
 	struct exit_reason reason;
 	child_trap_exit_code_singleton = &reason;
@@ -133,7 +155,7 @@ int main(int argc, char **argv)
 	signal(SIGCHLD, &exit_reason_child_trap);
 
 	int rv = EXIT_FAILURE;
-	for (int retries_remaining = MAX_RETRIES;
+	for (int retries_remaining = max_retries;
 	     retries_remaining > 0; --retries_remaining) {
 
 		// reset our exit reason prior to each fork
@@ -148,15 +170,12 @@ int main(int argc, char **argv)
 			goto end_main;
 		} else if (childpid == 0) {
 			// in child process
-			// shift-off this program and exec the rest
-			// of the commandline
-			char **rest = argv + 1;
-			rv = execv(rest[0], rest);
+			rv = execv(child_command_line[0], child_command_line);
 			goto end_main;
 		}
 
-		monitor_child_for_hang(childpid, &reason, MAX_RETRIES,
-				       HANG_CHECK_INTERVAL);
+		monitor_child_for_hang(childpid, &reason, max_hangs,
+				       hang_check_interval, fakeroot);
 
 		assert(reason.exited);
 
@@ -180,13 +199,15 @@ end_main:
 	return rv;
 }
 
-int process_looks_hung(pid_t pid)
+int process_looks_hung(pid_t pid, const char *fakeroot)
 {
 	errno = 0;
 	int err = 0;
-	struct state_list *currentThreadStates = get_states(pid, &err);
+	struct state_list *currentThreadStates =
+	    get_states(pid, fakeroot, &err);
 	if (err) {
-		Errorf("get_states(%ld) returned error: %d", (long)pid, err);
+		Errorf("get_states for pid:%ld (fakeroot:'%s')"
+		       " returned error: %d", (long)pid, fakeroot, err);
 	}
 
 	for (size_t i = 0; i < currentThreadStates->len; ++i) {
@@ -224,12 +245,9 @@ int process_looks_hung(pid_t pid)
 	return 1;
 }
 
-static char *pid_to_stat_pattern(char *buf, pid_t pid)
+static char *pid_to_stat_pattern(char *buf, const char *fakeroot, pid_t pid)
 {
-	/* This is intended to be useful for some forms of testing */
-	char *fakeroot = getenv("YOYO_FAKE_ROOT");
 	strcpy(buf, fakeroot ? fakeroot : "");
-
 	strcat(buf, "/proc/");
 	/* According to POSIX, pid_t is a signed int no wider than long */
 	sprintf(buf + strlen(buf), "%ld", (long)pid);
@@ -326,7 +344,7 @@ int ignore_no_such_file(const char *epath, int eerrno)
 	return 0;
 }
 
-struct state_list *get_states(pid_t pid, int *err)
+struct state_list *get_states(pid_t pid, const char *fakeroot, int *err)
 {
 	size_t size = sizeof(struct state_list);
 	struct state_list *sl = calloc(1, size);
@@ -336,7 +354,7 @@ struct state_list *get_states(pid_t pid, int *err)
 	}
 
 	char pattern[FILENAME_MAX + 3];
-	pid_to_stat_pattern(pattern, pid);
+	pid_to_stat_pattern(pattern, fakeroot, pid);
 
 	glob_t threads;
 	int (*errfunc)(const char *epath, int eerrno) = ignore_no_such_file;
@@ -389,20 +407,21 @@ void exit_reason_child_trap(int sig)
 static void monitor_child_for_hang(pid_t childpid,
 				   struct exit_reason *reason,
 				   unsigned max_hangs,
-				   unsigned hang_check_interval)
+				   unsigned hang_check_interval,
+				   const char *fakeroot)
 {
 	unsigned int hang_count = 0;
 	while (!reason->exited) {
 		unsigned int seconds = hang_check_interval;
 		unsigned int remain = sleep(seconds);
 		(void)remain;	// ignore, maybe interrupted by a handler?
-		if (process_looks_hung(childpid)) {
+		if (process_looks_hung(childpid, fakeroot)) {
 			++hang_count;
 			int sig = hang_count > max_hangs ? SIGTERM : SIGKILL;
 			errno = 0;
 			int err = kill(childpid, sig);
 			/* ESRCH: No such process */
-			if (err && (errno != ESRCH || global_verbose)) {
+			if (err && (global_verbose || errno != ESRCH)) {
 				const char *sigstr =
 				    (sig == SIGTERM) ? "SIGTERM" : "SIGKILL";
 				Errorf("kill(childpid, %d) returned %d", sigstr,
@@ -517,4 +536,126 @@ void exit_reason_to_str(struct exit_reason *reason, char *buf, size_t bufsize)
 	if (reason->continued) {
 		appendf(buf, bufsize, " was resumed by SIGCONT");
 	}
+}
+
+int print_help(FILE *out, const char *name)
+{
+	fprintf(out, "The %s runs a program, and monitors /proc\n"
+		"Based on counters in /proc if the process looks hung,\n"
+		"%s will kill and restart it.\n\n", YOYO_NAME, YOYO_NAME);
+	fprintf(out, "Usage: %s [OPTION] program program-args...\n", name);
+	fprintf(out,
+		"  -V, --version                  "
+		"print version (%s)\n", YOYO_VERSION);
+	fprintf(out,
+		"  -h, --help                     " "print this message\n");
+	fprintf(out,
+		"  -v, --verbose                  "
+		"output addition error information\n");
+	fprintf(out,
+		"  -w, --wait-interval[=seconds]  "
+		"seconds to sleep between checks\n"
+		"                                 "
+		"    if < 1, defaults is 5\n");
+	fprintf(out,
+		"  -m, --max-hangs[=num]          "
+		"number of hang checks to tolerate\n"
+		"                                 "
+		"    if < 1, defaults is 5\n");
+	fprintf(out,
+		"  -r, --max-retry[=num]          "
+		"max iterations to retry after hang\n"
+		"                                 "
+		"    if < 1, defaults is 5\n");
+	fprintf(out,
+		"  -f, --fakeroot[=path]          "
+		"path to look for /proc files\n");
+	return 0;
+}
+
+/* getopt/getoplong is horrrible */
+void parse_command_line(struct yoyo_options *options, int argc, char **argv)
+{
+	/* yes, optstirng is horrible */
+	const char *optstring = "Vhvw::m::r::f::";
+
+	struct option long_options[] = {
+		{ "version", no_argument, 0, 'V' },
+		{ "help", no_argument, 0, 'h' },
+		{ "verbose", no_argument, 0, 'v' },
+		{ "wait-interval", optional_argument, 0, 'w' },
+		{ "max-hangs", optional_argument, 0, 'm' },
+		{ "max-retries", optional_argument, 0, 'r' },
+		{ "fakeroot", optional_argument, 0, 'f' },
+		{ 0, 0, 0, 0 }
+	};
+
+	memset(options, 0x00, sizeof(struct yoyo_options));
+
+	char *verboseenv = getenv("VERBOSE");
+	if (verboseenv) {
+		options->verbose = atoi(verboseenv);
+	}
+
+	// This is intended to be useful for some forms of testing
+	char *fakerootenv = getenv("YOYO_FAKE_ROOT");
+	if (fakerootenv) {
+		options->fakeroot = fakerootenv;
+	}
+
+	while (1) {
+		int option_index = 0;
+		int opt_char = getopt_long(argc, argv, optstring, long_options,
+					   &option_index);
+
+		/* Detect the end of the options. */
+		if (opt_char == -1)
+			break;
+
+		switch (opt_char) {
+		case 0:
+			break;
+		case 'V':	/* --version | -V */
+			options->version = 1;
+			break;
+		case 'h':	/* --help | -h */
+			options->help = 1;
+			break;
+		case 'v':	/* --verbose | -v */
+			options->version = 1;
+			break;
+		case 'w':	/* --wait-interval | -w */
+			options->hang_check_interval = atoi(optarg);
+			break;
+		case 'm':	/* --max-hangs | -m */
+			options->max_hangs = atoi(optarg);
+			break;
+		case 'r':	/* --max-retries | -m */
+			options->max_retries = atoi(optarg);
+			break;
+		case 'f':	/* --fakeroot | -f */
+			options->fakeroot = optarg;
+			break;
+		}
+	}
+
+	if (options->hang_check_interval < 1) {
+		options->hang_check_interval = 5;
+	}
+
+	if (options->max_hangs < 1) {
+		options->max_hangs = 5;
+	}
+
+	if (options->max_retries < 1) {
+		options->max_retries = 5;
+	}
+
+	if (!options->fakeroot) {
+		options->fakeroot = "";
+	}
+
+	// shift-off this program + options, and exec the rest
+	// of the commandline
+	options->child_command_line = argv + optind;
 }

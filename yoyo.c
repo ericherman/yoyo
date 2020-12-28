@@ -226,7 +226,11 @@ int process_looks_hung(pid_t pid)
 
 static char *pid_to_stat_pattern(char *buf, pid_t pid)
 {
-	strcpy(buf, "/proc/");
+	/* This is intended to be useful for some forms of testing */
+	char *fakeroot = getenv("YOYO_FAKE_ROOT");
+	strcpy(buf, fakeroot ? fakeroot : "");
+
+	strcat(buf, "/proc/");
 	/* According to POSIX, pid_t is a signed int no wider than long */
 	sprintf(buf + strlen(buf), "%ld", (long)pid);
 	strcat(buf, "/task/*/stat");

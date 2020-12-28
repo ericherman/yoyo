@@ -63,15 +63,26 @@ struct exit_reason {
 
 /* function prototypes */
 
+typedef struct state_list *(*state_list_get_func) (pid_t pid, void *context);
+typedef void (*state_list_free_func)(struct state_list * l, void *context);
+
+/* monitor a child process; signal the process if it looks hung */
+void monitor_child_for_hang(struct exit_reason *reason, pid_t childpid,
+			    unsigned max_hangs, unsigned hang_check_interval,
+			    state_list_get_func get_states,
+			    state_list_free_func free_states, void *context);
+
 /* look for evidence of a hung process */
 int process_looks_hung(struct state_list **next, struct state_list *previous,
 		       struct state_list *current);
 
-/* given a pid, create state_list */
-struct state_list *get_states(pid_t pid, const char *fakeroot);
+/* given a pid, create state_list based on the '/proc' filesystem
+ * if the context object is non-null, it will be cast to a const char *
+ * and prepended before '/proc' */
+struct state_list *get_states_proc(pid_t pid, void *context);
 
 /* null-safe; frees the states as well as the state_list struct */
-void state_list_free(struct state_list *l);
+void state_list_free(struct state_list *l, void *context);
 
 /* append to a string buffer, always NULL-terminates */
 int appendf(char *buf, size_t bufsize, const char *format, ...);
@@ -92,14 +103,24 @@ void exit_reason_set(struct exit_reason *exit_reason, pid_t pid,
 /* populate buf with a human-friendly-ish description of the exit_reason */
 void exit_reason_to_str(struct exit_reason *exit_reason, char *buf, size_t len);
 
-/* monitor a child process; signal the process if it looks hung */
-void monitor_child_for_hang(struct exit_reason *reason, pid_t childpid,
-			    unsigned max_hangs, unsigned hang_check_interval,
-			    const char *fakeroot);
-
 void parse_command_line(struct yoyo_options *options, int argc, char **argv);
 
 int print_help(FILE *stream, const char *name);
+
+/* Modern versions of GCC whine about casting-away a const qualifier */
+#if __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+#endif
+/* Be very clear clear about when we are discarding const knowningly. */
+static void *discard_const(const void *v)
+{
+	return (void *)v;
+}
+
+#if __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 /*************************************************************************/
 /* globals */
@@ -169,8 +190,10 @@ int main(int argc, char **argv)
 			return execv(child_command_line[0], child_command_line);
 		}
 
+		void *context = discard_const(fakeroot);
 		monitor_child_for_hang(&reason, childpid, max_hangs,
-				       hang_check_interval, fakeroot);
+				       hang_check_interval, get_states_proc,
+				       state_list_free, context);
 
 		assert(reason.exited);
 
@@ -302,8 +325,9 @@ int thread_state_from_path(struct thread_state *ts, const char *path)
 	return (4 - matched);
 }
 
-void state_list_free(struct state_list *l)
+void state_list_free(struct state_list *l, void *context)
 {
+	(void)context;		// ignore
 	if (l) {
 		free(l->states);
 		free(l);
@@ -319,7 +343,7 @@ int ignore_no_such_file(const char *epath, int eerrno)
 	return 0;
 }
 
-struct state_list *get_states(pid_t pid, const char *fakeroot)
+struct state_list *get_states_proc(pid_t pid, void *context)
 {
 	errno = 0;
 
@@ -330,6 +354,7 @@ struct state_list *get_states(pid_t pid, const char *fakeroot)
 		exit(EXIT_FAILURE);
 	}
 
+	const char *fakeroot = context ? context : "";
 	char pattern[FILENAME_MAX + 3];
 	pid_to_stat_pattern(pattern, fakeroot, pid);
 
@@ -388,7 +413,8 @@ void exit_reason_child_trap(int sig)
 
 void monitor_child_for_hang(struct exit_reason *reason, pid_t childpid,
 			    unsigned max_hangs, unsigned hang_check_interval,
-			    const char *fakeroot)
+			    state_list_get_func get_states,
+			    state_list_free_func free_states, void *context)
 {
 	unsigned int hang_count = 0;
 	struct state_list *thread_states = NULL;
@@ -397,7 +423,7 @@ void monitor_child_for_hang(struct exit_reason *reason, pid_t childpid,
 		unsigned int remain = sleep(seconds);
 		(void)remain;	// ignore, maybe interrupted by a handler?
 		struct state_list *previous = thread_states;
-		struct state_list *current = get_states(childpid, fakeroot);
+		struct state_list *current = get_states(childpid, context);
 		if (process_looks_hung(&thread_states, previous, current)) {
 			++hang_count;
 			int sig = hang_count > max_hangs ? SIGTERM : SIGKILL;
@@ -415,12 +441,12 @@ void monitor_child_for_hang(struct exit_reason *reason, pid_t childpid,
 			printf("Child still appears to be"
 			       " doing something worthwhile\n");
 		}
-		state_list_free(previous);
+		free_states(previous, context);
 		if (thread_states != current) {
-			state_list_free(current);
+			free_states(current, context);
 		}
 	}
-	state_list_free(thread_states);
+	free_states(thread_states, context);
 }
 
 int appendf(char *buf, size_t bufsize, const char *format, ...)

@@ -64,7 +64,8 @@ struct exit_reason {
 /* function prototypes */
 
 /* look for evidence of a hung process */
-int process_looks_hung(pid_t pid, const char *fakeroot);
+int process_looks_hung(struct state_list **pprevious, pid_t pid,
+		       const char *fakeroot);
 
 /* given a pid, create state_list */
 struct state_list *get_states(pid_t pid, const char *fakeroot, int *err);
@@ -92,10 +93,9 @@ void exit_reason_set(struct exit_reason *exit_reason, pid_t pid,
 void exit_reason_to_str(struct exit_reason *exit_reason, char *buf, size_t len);
 
 /* monitor a child process; signal the process if it looks hung */
-static void monitor_child_for_hang(pid_t childpid, struct exit_reason *reason,
-				   unsigned max_hangs,
-				   unsigned hang_check_interval,
-				   const char *fakeroot);
+void monitor_child_for_hang(struct exit_reason *reason, pid_t childpid,
+			    unsigned max_hangs, unsigned hang_check_interval,
+			    const char *fakeroot);
 
 void parse_command_line(struct yoyo_options *options, int argc, char **argv);
 
@@ -118,8 +118,6 @@ int print_help(FILE *stream, const char *name);
 static struct exit_reason *child_trap_exit_code_singleton;
 
 static int global_verbose;
-
-struct state_list *threadStates = NULL;
 
 /*************************************************************************/
 /* functions */
@@ -154,7 +152,6 @@ int main(int argc, char **argv)
 	// now that globals are setup, set the handler
 	signal(SIGCHLD, &exit_reason_child_trap);
 
-	int rv = EXIT_FAILURE;
 	for (int retries_remaining = max_retries;
 	     retries_remaining > 0; --retries_remaining) {
 
@@ -166,15 +163,13 @@ int main(int argc, char **argv)
 
 		if (childpid < 0) {
 			Errorf("fork() failed?");
-			rv = EXIT_FAILURE;
-			goto end_main;
+			return EXIT_FAILURE;
 		} else if (childpid == 0) {
 			// in child process
-			rv = execv(child_command_line[0], child_command_line);
-			goto end_main;
+			return execv(child_command_line[0], child_command_line);
 		}
 
-		monitor_child_for_hang(childpid, &reason, max_hangs,
+		monitor_child_for_hang(&reason, childpid, max_hangs,
 				       hang_check_interval, fakeroot);
 
 		assert(reason.exited);
@@ -184,64 +179,59 @@ int main(int argc, char **argv)
 			       reason.exit_code);
 		} else {
 			printf("Child completed successfully\n");
-			rv = EXIT_SUCCESS;
-			goto end_main;
+			return EXIT_SUCCESS;
 		}
 	}
 
 	fflush(stdout);
 	fprintf(stderr, "Retries limit reached.\n");
-	rv = EXIT_FAILURE;
-
-end_main:
-	state_list_free(threadStates);
-	threadStates = NULL;
-	return rv;
+	return EXIT_FAILURE;
 }
 
-int process_looks_hung(pid_t pid, const char *fakeroot)
+int process_looks_hung(struct state_list **pprevious, pid_t pid,
+		       const char *fakeroot)
 {
+	struct state_list *previous = *pprevious;
 	errno = 0;
 	int err = 0;
-	struct state_list *currentThreadStates =
-	    get_states(pid, fakeroot, &err);
+	struct state_list *current = get_states(pid, fakeroot, &err);
 	if (err) {
 		Errorf("get_states for pid:%ld (fakeroot:'%s')"
 		       " returned error: %d", (long)pid, fakeroot, err);
 	}
 
-	for (size_t i = 0; i < currentThreadStates->len; ++i) {
-		if (currentThreadStates->states[i].state != 'S') {
-			state_list_free(currentThreadStates);
-			state_list_free(threadStates);
-			threadStates = NULL;
+	for (size_t i = 0; i < current->len; ++i) {
+		if (current->states[i].state != 'S') {
+			state_list_free(current);
+			state_list_free(previous);
+			*pprevious = NULL;
 			return 0;
 		}
 	}
 
-	if (!threadStates || threadStates->len != currentThreadStates->len) {
-		state_list_free(threadStates);
-		threadStates = currentThreadStates;
+	if (!previous || previous->len != current->len) {
+		state_list_free(previous);
+		*pprevious = current;
 		return 0;
 	}
 
-	for (size_t i = 0; i < currentThreadStates->len; ++i) {
-		struct thread_state old_state = threadStates->states[i];
-		struct thread_state new_state = currentThreadStates->states[i];
+	for (size_t i = 0; i < current->len; ++i) {
+		struct thread_state old_state = previous->states[i];
+		struct thread_state new_state = current->states[i];
 
 		if ((old_state.pid != new_state.pid)
 		    || (new_state.utime > (old_state.utime + 1))
 		    || (new_state.stime > (old_state.stime + 1))
 		    ) {
-			state_list_free(currentThreadStates);
-			state_list_free(threadStates);
-			threadStates = NULL;
+			state_list_free(current);
+			state_list_free(previous);
+			*pprevious = NULL;
 			return 0;
 		}
 	}
 
-	state_list_free(threadStates);
-	threadStates = currentThreadStates;
+	state_list_free(previous);
+	*pprevious = current;
 	return 1;
 }
 
@@ -404,18 +394,17 @@ void exit_reason_child_trap(int sig)
 	}
 }
 
-static void monitor_child_for_hang(pid_t childpid,
-				   struct exit_reason *reason,
-				   unsigned max_hangs,
-				   unsigned hang_check_interval,
-				   const char *fakeroot)
+void monitor_child_for_hang(struct exit_reason *reason, pid_t childpid,
+			    unsigned max_hangs, unsigned hang_check_interval,
+			    const char *fakeroot)
 {
 	unsigned int hang_count = 0;
+	struct state_list *thread_states = NULL;
 	while (!reason->exited) {
 		unsigned int seconds = hang_check_interval;
 		unsigned int remain = sleep(seconds);
 		(void)remain;	// ignore, maybe interrupted by a handler?
-		if (process_looks_hung(childpid, fakeroot)) {
+		if (process_looks_hung(&thread_states, childpid, fakeroot)) {
 			++hang_count;
 			int sig = hang_count > max_hangs ? SIGTERM : SIGKILL;
 			errno = 0;
@@ -433,6 +422,7 @@ static void monitor_child_for_hang(pid_t childpid,
 			       " doing something worthwhile\n");
 		}
 	}
+	state_list_free(thread_states);
 }
 
 int appendf(char *buf, size_t bufsize, const char *format, ...)

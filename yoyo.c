@@ -142,7 +142,7 @@ static int global_verbose;
 
 /*************************************************************************/
 /* functions */
-int main(int argc, char **argv)
+int yoyo_main(int argc, char **argv)
 {
 	if (argc < 2) {
 		fprintf(stderr, "no child command?\n");

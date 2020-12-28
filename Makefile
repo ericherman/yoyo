@@ -17,8 +17,8 @@ FAILCOUNT:=$(shell mktemp --tmpdir=. --suffix=.failcount)
 LINDENT=indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1 -il0
 # see also: https://www.kernel.org/doc/Documentation/process/coding-style.rst
 
-yoyoc: yoyo.c
-	$(CC) $(CFLAGS) $< -o $@
+yoyoc: yoyo.c yoyo-main.c
+	$(CC) $(CFLAGS) yoyo.c yoyo-main.c -o $@
 
 globdemo: globdemo.c
 	$(CC) $(CFLAGS) $< -o $@

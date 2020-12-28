@@ -64,11 +64,11 @@ struct exit_reason {
 /* function prototypes */
 
 /* look for evidence of a hung process */
-int process_looks_hung(struct state_list **pprevious, pid_t pid,
-		       const char *fakeroot);
+int process_looks_hung(struct state_list **next, struct state_list *previous,
+		       struct state_list *current);
 
 /* given a pid, create state_list */
-struct state_list *get_states(pid_t pid, const char *fakeroot, int *err);
+struct state_list *get_states(pid_t pid, const char *fakeroot);
 
 /* null-safe; frees the states as well as the state_list struct */
 void state_list_free(struct state_list *l);
@@ -188,30 +188,18 @@ int main(int argc, char **argv)
 	return EXIT_FAILURE;
 }
 
-int process_looks_hung(struct state_list **pprevious, pid_t pid,
-		       const char *fakeroot)
+int process_looks_hung(struct state_list **next, struct state_list *previous,
+		       struct state_list *current)
 {
-	struct state_list *previous = *pprevious;
-	errno = 0;
-	int err = 0;
-	struct state_list *current = get_states(pid, fakeroot, &err);
-	if (err) {
-		Errorf("get_states for pid:%ld (fakeroot:'%s')"
-		       " returned error: %d", (long)pid, fakeroot, err);
-	}
-
 	for (size_t i = 0; i < current->len; ++i) {
 		if (current->states[i].state != 'S') {
-			state_list_free(current);
-			state_list_free(previous);
-			*pprevious = NULL;
+			*next = NULL;
 			return 0;
 		}
 	}
 
 	if (!previous || previous->len != current->len) {
-		state_list_free(previous);
-		*pprevious = current;
+		*next = current;
 		return 0;
 	}
 
@@ -223,15 +211,12 @@ int process_looks_hung(struct state_list **pprevious, pid_t pid,
 		    || (new_state.utime > (old_state.utime + 1))
 		    || (new_state.stime > (old_state.stime + 1))
 		    ) {
-			state_list_free(current);
-			state_list_free(previous);
-			*pprevious = NULL;
+			*next = NULL;
 			return 0;
 		}
 	}
 
-	state_list_free(previous);
-	*pprevious = current;
+	*next = current;
 	return 1;
 }
 
@@ -334,8 +319,10 @@ int ignore_no_such_file(const char *epath, int eerrno)
 	return 0;
 }
 
-struct state_list *get_states(pid_t pid, const char *fakeroot, int *err)
+struct state_list *get_states(pid_t pid, const char *fakeroot)
 {
+	errno = 0;
+
 	size_t size = sizeof(struct state_list);
 	struct state_list *sl = calloc(1, size);
 	if (!sl) {
@@ -361,10 +348,15 @@ struct state_list *get_states(pid_t pid, const char *fakeroot, int *err)
 		exit(EXIT_FAILURE);
 	}
 
+	int err = 0;
 	for (size_t i = 0; i < threads.gl_pathc; ++i) {
 		const char *path = threads.gl_pathv[i];
 		struct thread_state *ts = &sl->states[i];
-		*err += thread_state_from_path(ts, path);
+		err += thread_state_from_path(ts, path);
+	}
+	if (err) {
+		Errorf("get_states for pid:%ld (fakeroot:'%s')"
+		       " returned error: %d", (long)pid, fakeroot, err);
 	}
 
 	globfree(&threads);
@@ -404,7 +396,9 @@ void monitor_child_for_hang(struct exit_reason *reason, pid_t childpid,
 		unsigned int seconds = hang_check_interval;
 		unsigned int remain = sleep(seconds);
 		(void)remain;	// ignore, maybe interrupted by a handler?
-		if (process_looks_hung(&thread_states, childpid, fakeroot)) {
+		struct state_list *previous = thread_states;
+		struct state_list *current = get_states(childpid, fakeroot);
+		if (process_looks_hung(&thread_states, previous, current)) {
 			++hang_count;
 			int sig = hang_count > max_hangs ? SIGTERM : SIGKILL;
 			errno = 0;
@@ -420,6 +414,10 @@ void monitor_child_for_hang(struct exit_reason *reason, pid_t childpid,
 			hang_count = 0;
 			printf("Child still appears to be"
 			       " doing something worthwhile\n");
+		}
+		state_list_free(previous);
+		if (thread_states != current) {
+			state_list_free(current);
 		}
 	}
 	state_list_free(thread_states);

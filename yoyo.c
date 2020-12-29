@@ -28,6 +28,8 @@
 	errorf(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
 
 int print_help(FILE *out, const char *name);
+int kill_pid(long pid, int sig, void *context);
+unsigned int unistd_sleep(unsigned int seconds, void *context);
 
 /* Modern versions of GCC whine about casting-away a const qualifier */
 #if __GNUC__
@@ -58,6 +60,9 @@ static void *discard_const(const void *v)
 
   Thus, we will need some global space to pass data between functions.
 */
+
+static pid_t global_childpid;
+
 static struct exit_reason *child_trap_exit_code_singleton;
 
 static int global_verbose;
@@ -102,29 +107,33 @@ int yoyo_main(int argc, char **argv)
 		exit_reason_clear(&reason);
 
 		errno = 0;
-		pid_t childpid = fork();
+		global_childpid = fork();
 
-		if (childpid < 0) {
+		if (global_childpid < 0) {
 			Errorf("fork() failed?");
 			return EXIT_FAILURE;
-		} else if (childpid == 0) {
+		} else if (global_childpid == 0) {
 			// in child process
 			return execv(child_command_line[0], child_command_line);
 		}
 
 		void *context = discard_const(fakeroot);
-		monitor_child_for_hang(&reason, childpid, max_hangs,
+		monitor_child_for_hang(global_childpid, max_hangs,
 				       hang_check_interval, get_states_proc,
-				       state_list_free, context);
-
-		assert(reason.exited);
+				       state_list_free, unistd_sleep, kill_pid,
+				       context);
 
 		if (reason.exit_code != 0) {
 			printf("Child exited with status %d\n",
 			       reason.exit_code);
-		} else {
+		} else if (reason.exited) {
 			printf("Child completed successfully\n");
 			return EXIT_SUCCESS;
+		} else {
+			char er_buf[250];
+			exit_reason_to_str(&reason, er_buf, 250);
+			printf("child %ld:\n%s\n", (long)global_childpid,
+			       er_buf);
 		}
 	}
 
@@ -310,6 +319,18 @@ struct state_list *get_states_proc(long pid, void *context)
 	return sl;
 }
 
+int kill_pid(long pid, int sig, void *context)
+{
+	(void)context;
+	return kill(pid, sig);
+}
+
+unsigned int unistd_sleep(unsigned int seconds, void *context)
+{
+	(void)context;
+	return sleep(seconds);
+}
+
 void exit_reason_child_trap(int sig)
 {
 	if (global_verbose) {
@@ -322,34 +343,42 @@ void exit_reason_child_trap(int sig)
 
 	pid_t pid = waitpid(any_child, &wait_status, options);
 
-	exit_reason_set(child_trap_exit_code_singleton, pid, wait_status);
+	if (pid == global_childpid) {
+		exit_reason_set(child_trap_exit_code_singleton, pid,
+				wait_status);
+	}
 
 	if (global_verbose) {
+		struct exit_reason tmp;
+		exit_reason_set(&tmp, pid, wait_status);
 		size_t len = 255;
 		char buf[len];
-		exit_reason_to_str(child_trap_exit_code_singleton, buf, len);
+		exit_reason_to_str(&tmp, buf, len);
 		printf("%s\n", buf);
 	}
 }
 
-void monitor_child_for_hang(struct exit_reason *reason, long childpid,
-			    unsigned max_hangs, unsigned hang_check_interval,
+void monitor_child_for_hang(long childpid, unsigned max_hangs,
+			    unsigned hang_check_interval,
 			    state_list_get_func get_states,
-			    state_list_free_func free_states, void *context)
+			    state_list_free_func free_states,
+			    sleep_func sleep_seconds, kill_func kill_child,
+			    void *context)
 {
 	unsigned int hang_count = 0;
 	struct state_list *thread_states = NULL;
-	while (!reason->exited) {
+	const int sig_exists = 0;
+	while (kill_child(childpid, sig_exists, context) == 0) {
 		unsigned int seconds = hang_check_interval;
-		unsigned int remain = sleep(seconds);
+		unsigned int remain = sleep_seconds(seconds, context);
 		(void)remain;	// ignore, maybe interrupted by a handler?
 		struct state_list *previous = thread_states;
 		struct state_list *current = get_states(childpid, context);
 		if (process_looks_hung(&thread_states, previous, current)) {
 			++hang_count;
-			int sig = hang_count > max_hangs ? SIGTERM : SIGKILL;
+			int sig = hang_count <= max_hangs ? SIGTERM : SIGKILL;
 			errno = 0;
-			int err = kill(childpid, sig);
+			int err = kill_child(childpid, sig, context);
 			/* ESRCH: No such process */
 			if (err && (global_verbose || errno != ESRCH)) {
 				const char *sigstr =
@@ -357,10 +386,13 @@ void monitor_child_for_hang(struct exit_reason *reason, long childpid,
 				Errorf("kill(childpid, %d) returned %d", sigstr,
 				       err);
 			}
+			sleep_seconds(1, context);
 		} else {
 			hang_count = 0;
-			printf("Child still appears to be"
-			       " doing something worthwhile\n");
+			if (global_verbose) {
+				printf("Child still appears to be"
+				       " doing something worthwhile\n");
+			}
 		}
 		free_states(previous, context);
 		if (thread_states != current) {
@@ -575,7 +607,7 @@ void parse_command_line(struct yoyo_options *options, int argc, char **argv)
 	}
 
 	if (options->hang_check_interval < 1) {
-		options->hang_check_interval = 5;
+		options->hang_check_interval = 60;
 	}
 
 	if (options->max_hangs < 1) {

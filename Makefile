@@ -32,8 +32,15 @@ test_process_looks_hung: yoyo.c yoyo.h test_process_looks_hung.c
 check_process_looks_hung: test_process_looks_hung
 	./test_process_looks_hung
 
+test_monitor_child_for_hang: yoyo.c yoyo.h test_monitor_child_for_hang.c
+	$(CC) $(CFLAGS) yoyo.c test_monitor_child_for_hang.c -o $@
+
+check_monitor_child_for_hang: test_monitor_child_for_hang
+	./test_monitor_child_for_hang
+
 check-yoyoc: check_yoyo_parse_command_line \
-		check_process_looks_hung
+		check_process_looks_hung \
+		check_monitor_child_for_hang
 	@echo check-yoyoc SUCCESS
 
 check: check-yoyoc yoyoc

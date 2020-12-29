@@ -1,6 +1,7 @@
 yoyoc
 globdemo
 test_yoyo_parse_command_line
+test_process_looks_hung
 
 ###################
 # backup files

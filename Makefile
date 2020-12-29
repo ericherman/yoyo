@@ -23,13 +23,17 @@ yoyoc: yoyo.c yoyo-main.c yoyo.h
 test_yoyo_parse_command_line: yoyo.c yoyo.h test_yoyo_parse_command_line.c
 	$(CC) $(CFLAGS) yoyo.c test_yoyo_parse_command_line.c -o $@
 
-globdemo: globdemo.c
-	$(CC) $(CFLAGS) $< -o $@
-
 check_yoyo_parse_command_line: test_yoyo_parse_command_line
 	./test_yoyo_parse_command_line
 
-check-yoyoc: check_yoyo_parse_command_line
+test_process_looks_hung: yoyo.c yoyo.h test_process_looks_hung.c
+	$(CC) $(CFLAGS) yoyo.c test_process_looks_hung.c -o $@
+
+check_process_looks_hung: test_process_looks_hung
+	./test_process_looks_hung
+
+check-yoyoc: check_yoyo_parse_command_line \
+		check_process_looks_hung
 	@echo check-yoyoc SUCCESS
 
 check: check-yoyoc yoyoc
@@ -50,6 +54,9 @@ check: check-yoyoc yoyoc
 	FAILCOUNT=$(FAILCOUNT) ./yoyoc ./fixture 2
 	@echo
 	rm -fv $(FAILCOUNT)
+
+globdemo: globdemo.c
+	$(CC) $(CFLAGS) $< -o $@
 
 clean:
 	rm -rvf yoyoc *.failcount `cat .gitignore | sed -e 's/#.*//'`

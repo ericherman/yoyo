@@ -36,7 +36,7 @@ unsigned int unistd_sleep(unsigned int seconds, void *context);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif
-/* Be very clear that when we are discarding const knowningly. */
+/* Be very clear that we are discarding const knowningly. */
 static void *discard_const(const void *v)
 {
 	return (void *)v;

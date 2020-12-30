@@ -600,11 +600,6 @@ void parse_command_line(struct yoyo_options *options, int argc, char **argv)
 			break;
 
 		switch (opt_char) {
-			/* getopt_long does not require a case 0, yet it is standard */
-			/* LCOV_EXCL_START */
-		case 0:
-			break;
-			/* LCOV_EXCL_STOP */
 		case 'V':	/* --version | -V */
 			options->version = 1;
 			break;

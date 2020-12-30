@@ -153,6 +153,45 @@ unsigned test_times_increment_by_only_one(void)
 	return failures;
 }
 
+unsigned test_sleeping_times_increment_by_more_than_one(void)
+{
+	struct thread_state three_sleeping[3] = {
+		{.pid = 10007,.state = 'S',.utime = 3217,.stime = 3259 },
+		{.pid = 10009,.state = 'S',.utime = 6733,.stime = 5333 },
+		{.pid = 10037,.state = 'S',.utime = 0,.stime = 0 }
+	};
+	struct state_list all_sleeping = {.states = three_sleeping,.len = 3 };
+
+	struct thread_state all_inc_by_one[3] = {
+		{.pid = 10007,.state = 'S',.utime = 3217,.stime = 3259 },
+		{.pid = 10009,.state = 'S',.utime = 6733,.stime = 5333 },
+		{.pid = 10037,.state = 'S',.utime = 1,.stime = 17 },
+	};
+	struct state_list still_sleeping = {.states = all_inc_by_one,.len = 3 };
+
+	struct state_list *next = NULL;
+	struct state_list *previous = &all_sleeping;
+	struct state_list *current = &still_sleeping;
+
+	int hung = process_looks_hung(&next, previous, current);
+
+	unsigned failures = 0;
+	if (hung) {
+		fprintf(stderr, "%s:%s:%d FAIL: %s expected %d but was %d\n",
+			__FILE__, __func__, __LINE__, "hung", 0, hung);
+		++failures;
+	}
+
+	if (next) {
+		fprintf(stderr, "%s:%s:%d FAIL: %s expected %p but was %p\n",
+			__FILE__, __func__, __LINE__, "next", NULL,
+			(void *)next);
+		++failures;
+	}
+
+	return failures;
+}
+
 int main(void)
 {
 	unsigned failures = 0;
@@ -161,6 +200,7 @@ int main(void)
 	failures += test_next_not_sleeping();
 	failures += test_all_sleeping_different_length();
 	failures += test_times_increment_by_only_one();
+	failures += test_sleeping_times_increment_by_more_than_one();
 
 	return failures ? 1 : 0;
 }

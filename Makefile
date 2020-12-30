@@ -54,7 +54,14 @@ test_monitor_child_for_hang: yoyo.o test_monitor_child_for_hang.c
 check_monitor_child_for_hang: test_monitor_child_for_hang
 	./test_monitor_child_for_hang
 
+test_slurp_text: yoyo.o test_slurp_text.c
+	$(CC) $(CFLAGS) $^ -o $@
+
+check_slurp_text: test_slurp_text
+	./test_slurp_text
+
 check-yoyoc: check_yoyo_parse_command_line \
+		check_slurp_text \
 		check_process_looks_hung \
 		check_monitor_child_for_hang
 	@echo "$@ SUCCESS"
@@ -122,7 +129,7 @@ globdemo: globdemo.c
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm -rvf yoyoc *.failcount `cat .gitignore | sed -e 's/#.*//'`
+	rm -rvf yoyoc *.failcount *.slurp `cat .gitignore | sed -e 's/#.*//'`
 
 mrproper:
 	git clean -dffx

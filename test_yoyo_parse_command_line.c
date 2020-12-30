@@ -34,11 +34,14 @@ unsigned test_fixture_2(void)
 
 unsigned test_ls_l(void)
 {
-	const int fake_argc = 6;
-	char *fake_args[7] = {
+	const int fake_argc = 9;
+	char *fake_args[10] = {
 		"./yoyo",
-		"--wait-interval=60",
-		"--verbose",
+		"--verbose=2",
+		"--wait-interval=30",
+		"--max-hangs=3",
+		"--max-retries=6",
+		"--fakeroot=./fake",
 		"--",
 		"ls",
 		"-l",
@@ -51,10 +54,19 @@ unsigned test_ls_l(void)
 
 	unsigned failures = 0;
 
-	if (options.hang_check_interval != 60) {
+	if (options.verbose != 2) {
 		++failures;
 	}
-	if (!options.verbose) {
+	if (options.hang_check_interval != 30) {
+		++failures;
+	}
+	if (options.max_hangs != 3) {
+		++failures;
+	}
+	if (options.max_retries != 6) {
+		++failures;
+	}
+	if (strcmp(options.fakeroot, "./fake") != 0) {
 		++failures;
 	}
 	if (strcmp(options.child_command_line[0], "ls") != 0) {

@@ -10,7 +10,6 @@
 #include <stdint.h>
 
 /* hosted headers */
-#include <assert.h>
 #include <errno.h>
 #include <glob.h>
 #include <getopt.h>
@@ -23,6 +22,10 @@
 
 #define YOYO_NAME "yoyo"
 #define YOYO_VERSION "0.0.1"
+
+#define DEFAULT_HANG_CHECK_INTERVAL 60
+#define DEFAULT_MAX_HANGS 5
+#define DEFAULT_MAX_RETRIES 5
 
 #define Errorf(format, ...) \
 	errorf(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
@@ -71,23 +74,21 @@ static int global_verbose;
 /* functions */
 int yoyo_main(int argc, char **argv)
 {
-	if (argc < 2) {
-		Errorf("no child command?");
-		return EXIT_FAILURE;
-	}
-
 	struct yoyo_options options;
 	parse_command_line(&options, argc, argv);
 
+	int child_command_line_len = options.child_command_line_len;
 	if (options.version) {
 		printf("%s version %s\n", YOYO_NAME, YOYO_VERSION);
 		return 0;
-	} else if (options.help) {
-		return print_help(stdout, argv[0]);
+	} else if (options.help || !child_command_line_len) {
+		print_help(stdout, argv[0]);
+		return (options.help
+			|| child_command_line_len) ? EXIT_SUCCESS :
+		    EXIT_FAILURE;
 	}
 	int max_retries = options.max_retries;
 	char **child_command_line = options.child_command_line;
-	int child_command_line_len = options.child_command_line_len;
 	int max_hangs = options.max_hangs;
 	int hang_check_interval = options.hang_check_interval;
 	const char *fakeroot = options.fakeroot;
@@ -236,10 +237,9 @@ int thread_state_from_path(struct thread_state *ts, const char *path)
 	const size_t buf_len = FILENAME_MAX + (fields * (sizeof(long) + 1));
 	char buf[buf_len];
 	errno = 0;
-	if (!slurp_text(buf, buf_len, path)) {
-		if (global_verbose > 1 || errno != ENOENT) {
-			Errorf("slurp_text failed?");
-		}
+	char *rbuf = slurp_text(buf, buf_len, path);
+	if (global_verbose > 1 || (!rbuf && errno != ENOENT)) {
+		Errorf("slurp_text returned %p", rbuf);
 	}
 
 	const char *stat_scanf =
@@ -247,8 +247,8 @@ int thread_state_from_path(struct thread_state *ts, const char *path)
 	errno = 0;
 	int matched = sscanf(buf, stat_scanf, &ts->pid, &ts->state, &ts->utime,
 			     &ts->stime);
-	if (matched != 4) {
-		Errorf("only matched %d for %s", matched, path);
+	if (global_verbose > 1 || matched != 4) {
+		Errorf("scanf matched %d of 4 fields for %s", matched, path);
 	}
 
 	return (4 - matched);
@@ -543,9 +543,10 @@ int print_help(FILE *out, const char *name)
 	fprintf(out, "Usage: %s [OPTION] program program-args...\n", name);
 	fprintf(out,
 		"  -V, --version                  "
-		"print version (%s)\n", YOYO_VERSION);
+		"print version (%s) and exit\n", YOYO_VERSION);
 	fprintf(out,
-		"  -h, --help                     " "print this message\n");
+		"  -h, --help                     "
+		"print this message and exit\n");
 	fprintf(out,
 		"  -v, --verbose                  "
 		"output addition error information\n");
@@ -553,17 +554,17 @@ int print_help(FILE *out, const char *name)
 		"  -w, --wait-interval[=seconds]  "
 		"seconds to sleep between checks\n"
 		"                                 "
-		"    if < 1, defaults is 5\n");
+		"    if < 1, defaults is %d\n", DEFAULT_HANG_CHECK_INTERVAL);
 	fprintf(out,
 		"  -m, --max-hangs[=num]          "
 		"number of hang checks to tolerate\n"
 		"                                 "
-		"    if < 1, defaults is 5\n");
+		"    if < 1, defaults is %d\n", DEFAULT_MAX_HANGS);
 	fprintf(out,
-		"  -r, --max-retry[=num]          "
+		"  -r, --max-retries[=num]          "
 		"max iterations to retry after hang\n"
 		"                                 "
-		"    if < 1, defaults is 5\n");
+		"    if < 1, defaults is %d\n", DEFAULT_MAX_RETRIES);
 	fprintf(out,
 		"  -f, --fakeroot[=path]          "
 		"path to look for /proc files\n");
@@ -588,17 +589,6 @@ void parse_command_line(struct yoyo_options *options, int argc, char **argv)
 	};
 
 	memset(options, 0x00, sizeof(struct yoyo_options));
-
-	char *verboseenv = getenv("VERBOSE");
-	if (verboseenv) {
-		options->verbose = atoi(verboseenv);
-	}
-
-	// This is intended to be useful for some forms of testing
-	char *fakerootenv = getenv("YOYO_FAKE_ROOT");
-	if (fakerootenv) {
-		options->fakeroot = fakerootenv;
-	}
 
 	while (1) {
 		int option_index = 0;
@@ -637,15 +627,15 @@ void parse_command_line(struct yoyo_options *options, int argc, char **argv)
 	}
 
 	if (options->hang_check_interval < 1) {
-		options->hang_check_interval = 60;
+		options->hang_check_interval = DEFAULT_HANG_CHECK_INTERVAL;
 	}
 
 	if (options->max_hangs < 1) {
-		options->max_hangs = 5;
+		options->max_hangs = DEFAULT_MAX_HANGS;
 	}
 
 	if (options->max_retries < 1) {
-		options->max_retries = 5;
+		options->max_retries = DEFAULT_MAX_RETRIES;
 	}
 
 	if (!options->fakeroot) {

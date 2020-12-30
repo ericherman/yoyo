@@ -85,38 +85,32 @@ check: check-yoyoc yoyoc faux-rogue
 	echo "0" > $(FAILCOUNT)
 	FAILCOUNT=$(FAILCOUNT) ./yoyoc \
 		--wait-interval=$(WAIT_INTERVAL) \
-		  $(YOYO_OPTS) \
-		./faux-rogue $(FIXTURE_SLEEP)
+		$(YOYO_OPTS) ./faux-rogue $(FIXTURE_SLEEP)
 	@echo
 	@echo "fail once, then succeed"
 	echo "1" > $(FAILCOUNT)
 	FAILCOUNT=$(FAILCOUNT) ./yoyoc \
 		--wait-interval=$(WAIT_INTERVAL) \
-		$(YOYO_OPTS) \
-		./faux-rogue $(FIXTURE_SLEEP)
+		$(YOYO_OPTS) ./faux-rogue $(FIXTURE_SLEEP)
 	@echo
 	@echo "succeed after a long time"
 	echo "0" > $(FAILCOUNT)
 	FAILCOUNT=$(FAILCOUNT) ./yoyoc \
 		--wait-interval=$(WAIT_INTERVAL) \
-		$(YOYO_OPTS) \
-		./faux-rogue $(FIXTURE_SLEEP_LONG)
+		$(YOYO_OPTS) ./faux-rogue $(FIXTURE_SLEEP_LONG)
 	@echo
 	echo "./faux-rogue will hang twice"
 	echo "-2" > $(FAILCOUNT)
 	FAILCOUNT=$(FAILCOUNT) ./yoyoc \
 		--wait-interval=$(WAIT_INTERVAL) \
-		$(YOYO_OPTS) \
-		./faux-rogue $(FIXTURE_SLEEP)
+		$(YOYO_OPTS) ./faux-rogue $(FIXTURE_SLEEP)
 	@echo
 	echo "now ./faux-rogue will hang every time"
 	echo "-100" > $(FAILCOUNT)
 	-( FAILCOUNT=$(FAILCOUNT) ./yoyoc \
 		--wait-interval=$(WAIT_INTERVAL) \
-		--max-hangs=3 \
-		--max-retries=2 \
-		$(YOYO_OPTS) \
-		  ./faux-rogue $(FIXTURE_SLEEP) )
+		--max-hangs=3 --max-retries=2 \
+		$(YOYO_OPTS) ./faux-rogue $(FIXTURE_SLEEP) )
 	@echo
 	rm -fv $(FAILCOUNT)
 	@echo "$@ SUCCESS"

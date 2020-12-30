@@ -65,7 +65,11 @@ int process_looks_hung(struct state_list **next, struct state_list *previous,
 struct state_list *get_states_proc(long pid, void *context);
 
 /* null-safe; frees the states as well as the state_list struct */
-void state_list_free(struct state_list *l, void *context);
+void free_states_wrap(struct state_list *l, void *context);
+
+/* will return NULL on OOM */
+struct state_list *state_list_new(size_t length);
+void state_list_free(struct state_list *l);
 
 /* append to a string buffer, always NULL-terminates */
 int appendf(char *buf, size_t bufsize, const char *format, ...);

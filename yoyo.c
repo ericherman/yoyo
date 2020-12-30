@@ -36,7 +36,7 @@ unsigned int unistd_sleep(unsigned int seconds, void *context);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-qual"
 #endif
-/* Be very clear clear about when we are discarding const knowningly. */
+/* Be very clear that when we are discarding const knowningly. */
 static void *discard_const(const void *v)
 {
 	return (void *)v;
@@ -117,10 +117,16 @@ int yoyo_main(int argc, char **argv)
 			return execv(child_command_line[0], child_command_line);
 		}
 
+		state_list_get_func get_states = get_states_proc;
+		state_list_free_func free_states = free_states_wrap;
+		sleep_func sleep_seconds = unistd_sleep;
+		kill_func kill_child = kill_pid;
+		// context is used by get_states_proc
 		void *context = discard_const(fakeroot);
+
 		monitor_child_for_hang(global_childpid, max_hangs,
-				       hang_check_interval, get_states_proc,
-				       state_list_free, unistd_sleep, kill_pid,
+				       hang_check_interval, get_states,
+				       free_states, sleep_seconds, kill_child,
 				       context);
 
 		if (reason.exit_code != 0) {
@@ -142,6 +148,7 @@ int yoyo_main(int argc, char **argv)
 	return EXIT_FAILURE;
 }
 
+// "next" is an OUT parameter
 int process_looks_hung(struct state_list **next, struct state_list *previous,
 		       struct state_list *current)
 {
@@ -255,9 +262,30 @@ int thread_state_from_path(struct thread_state *ts, const char *path)
 	return (4 - matched);
 }
 
-void state_list_free(struct state_list *l, void *context)
+struct state_list *state_list_new(size_t length)
 {
-	(void)context;		// ignore
+	size_t size = sizeof(struct state_list);
+	struct state_list *sl = calloc(1, size);
+	if (!sl) {
+		Errorf("could not calloc (%zu bytes)?", size);
+		return NULL;
+	}
+
+	sl->len = length;
+	size = sizeof(struct thread_state);
+	sl->states = calloc(sl->len, size);
+	if (!sl->states) {
+		size_t total = sl->len * size;
+		Errorf("could not calloc(%zu, %zu) (%zu bytes)?", sl->len, size,
+		       total);
+		free(sl);
+		return NULL;
+	}
+	return sl;
+}
+
+void state_list_free(struct state_list *l)
+{
 	if (l) {
 		free(l->states);
 		free(l);
@@ -277,13 +305,6 @@ struct state_list *get_states_proc(long pid, void *context)
 {
 	errno = 0;
 
-	size_t size = sizeof(struct state_list);
-	struct state_list *sl = calloc(1, size);
-	if (!sl) {
-		Errorf("could not calloc (%zu bytes)?", size);
-		exit(EXIT_FAILURE);
-	}
-
 	const char *fakeroot = context ? context : "";
 	char pattern[FILENAME_MAX + 3];
 	pid_to_stat_pattern(pattern, fakeroot, pid);
@@ -293,13 +314,8 @@ struct state_list *get_states_proc(long pid, void *context)
 	errno = 0;
 	glob(pattern, GLOB_MARK, errfunc, &threads);
 
-	sl->len = threads.gl_pathc;
-	size = sizeof(struct thread_state);
-	sl->states = calloc(sl->len, size);
-	if (!sl->states) {
-		size_t total = sl->len * size;
-		Errorf("could not calloc(%zu, %zu) (%zu bytes)?", sl->len, size,
-		       total);
+	struct state_list *sl = state_list_new(threads.gl_pathc);
+	if (!sl) {
 		exit(EXIT_FAILURE);
 	}
 
@@ -317,6 +333,12 @@ struct state_list *get_states_proc(long pid, void *context)
 	globfree(&threads);
 
 	return sl;
+}
+
+void free_states_wrap(struct state_list *l, void *context)
+{
+	(void)context;
+	state_list_free(l);
 }
 
 int kill_pid(long pid, int sig, void *context)
@@ -354,7 +376,8 @@ void exit_reason_child_trap(int sig)
 		size_t len = 255;
 		char buf[len];
 		exit_reason_to_str(&tmp, buf, len);
-		printf("%s\n", buf);
+		printf("exit_reason_child_trap(%d) (%d): %s\n", sig,
+		       wait_status, buf);
 	}
 }
 

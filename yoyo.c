@@ -72,8 +72,8 @@ static int global_verbose;
 int yoyo_main(int argc, char **argv)
 {
 	if (argc < 2) {
-		fprintf(stderr, "no child command?\n");
-		exit(EXIT_FAILURE);
+		Errorf("no child command?");
+		return EXIT_FAILURE;
 	}
 
 	struct yoyo_options options;
@@ -87,12 +87,16 @@ int yoyo_main(int argc, char **argv)
 	}
 	int max_retries = options.max_retries;
 	char **child_command_line = options.child_command_line;
+	int child_command_line_len = options.child_command_line_len;
 	int max_hangs = options.max_hangs;
 	int hang_check_interval = options.hang_check_interval;
 	const char *fakeroot = options.fakeroot;
 
 	// setup globals for sharing data with signal handler
 	global_verbose = options.verbose;
+	if (global_verbose) {
+		printf("global_verbose: %d\n", global_verbose);
+	}
 
 	struct exit_reason reason;
 	child_trap_exit_code_singleton = &reason;
@@ -110,11 +114,25 @@ int yoyo_main(int argc, char **argv)
 		global_childpid = fork();
 
 		if (global_childpid < 0) {
+			/* no intention of testing fork failing */
+			/* LCOV_EXCL_START */
 			Errorf("fork() failed?");
 			return EXIT_FAILURE;
+			/* LCOV_EXCL_STOP */
 		} else if (global_childpid == 0) {
 			// in child process
+			if (global_verbose) {
+				for (int i = 0; i < child_command_line_len; ++i) {
+					printf("%s ", child_command_line[i]);
+				}
+				printf("\n");
+				fflush(stdout);
+			}
 			return execv(child_command_line[0], child_command_line);
+		}
+
+		if (global_verbose) {
+			printf("child_pid: %ld\n", (long)global_childpid);
 		}
 
 		state_list_get_func get_states = get_states_proc;
@@ -190,7 +208,7 @@ static char *pid_to_stat_pattern(char *buf, const char *fakeroot, long pid)
 	return buf;
 }
 
-static char *slurp_text(char *buf, size_t buflen, const char *path)
+char *slurp_text(char *buf, size_t buflen, const char *path)
 {
 	if (!buf || !buflen) {
 		return NULL;
@@ -207,35 +225,9 @@ static char *slurp_text(char *buf, size_t buflen, const char *path)
 	}
 
 	errno = 0;
-	if (fseek(f, 0, SEEK_END)) {
-		Errorf("seek(f, 0, SEEK_END) failure?");
-	}
-
-	errno = 0;
-	long length = ftell(f);
-	if (length <= 0) {
-		Errorf("ftell returned %ld?", length);
-		buf = NULL;
-	} else {
-		unsigned long ulength = (unsigned long)length;
-		size_t bytes = (ulength < buflen) ? ulength : buflen - 1;
-
-		errno = 0;
-		if (fseek(f, 0, SEEK_SET)) {
-			Errorf("seek(f, 0, SEEK_SET) failure?");
-		}
-
-		errno = 0;
-		size_t n = fread(buf, 1, bytes, f);
-		if (n != ulength) {
-			Errorf("only read %zu of %lu bytes from %s", n, ulength,
-			       path);
-			buf = NULL;
-		}
-	}
-
+	size_t n = fread(buf, 1, buflen - 1, f);
 	fclose(f);
-	return buf;
+	return n ? buf : NULL;
 }
 
 int thread_state_from_path(struct thread_state *ts, const char *path)
@@ -245,7 +237,7 @@ int thread_state_from_path(struct thread_state *ts, const char *path)
 	char buf[buf_len];
 	errno = 0;
 	if (!slurp_text(buf, buf_len, path)) {
-		if (global_verbose || errno != ENOENT) {
+		if (global_verbose > 1 || errno != ENOENT) {
 			Errorf("slurp_text failed?");
 		}
 	}
@@ -295,7 +287,7 @@ void state_list_free(struct state_list *l)
 /* errno ENOENT: No such file or directory */
 int ignore_no_such_file(const char *epath, int eerrno)
 {
-	if (global_verbose || errno != ENOENT) {
+	if (global_verbose > 1 || errno != ENOENT) {
 		Errorf("%s (%d)", epath, eerrno);
 	}
 	return 0;
@@ -309,25 +301,40 @@ struct state_list *get_states_proc(long pid, void *context)
 	char pattern[FILENAME_MAX + 3];
 	pid_to_stat_pattern(pattern, fakeroot, pid);
 
+	if (global_verbose) {
+		printf("pattern == '%s'\n", pattern);
+	}
+
 	glob_t threads;
 	int (*errfunc)(const char *epath, int eerrno) = ignore_no_such_file;
 	errno = 0;
 	glob(pattern, GLOB_MARK, errfunc, &threads);
 
-	struct state_list *sl = state_list_new(threads.gl_pathc);
+	size_t len = threads.gl_pathc;
+	if (global_verbose) {
+		printf("matches for %ld: %zu\n", pid, len);
+	}
+	struct state_list *sl = state_list_new(len);
+	/* by inspection, does the right thing, no intention test */
+	/* LCOV_EXCL_START */
 	if (!sl) {
 		exit(EXIT_FAILURE);
 	}
+	/* LCOV_EXCL_STOP */
 
 	int err = 0;
-	for (size_t i = 0; i < threads.gl_pathc; ++i) {
+	for (size_t i = 0; i < len; ++i) {
 		const char *path = threads.gl_pathv[i];
+		if (global_verbose) {
+			printf("\t%s\n", path);
+		}
 		struct thread_state *ts = &sl->states[i];
 		err += thread_state_from_path(ts, path);
 	}
-	if (err) {
-		Errorf("get_states for pid:%ld (fakeroot:'%s')"
-		       " returned error: %d", (long)pid, fakeroot, err);
+
+	if (err || global_verbose) {
+		Errorf("get_states for pid: %ld (fakeroot:'%s')"
+		       " errors: %d", (long)pid, fakeroot, err);
 	}
 
 	globfree(&threads);
@@ -403,7 +410,7 @@ void monitor_child_for_hang(long childpid, unsigned max_hangs,
 			errno = 0;
 			int err = kill_child(childpid, sig, context);
 			/* ESRCH: No such process */
-			if (err && (global_verbose || errno != ESRCH)) {
+			if (global_verbose || (err && (errno != ESRCH))) {
 				const char *sigstr =
 				    (sig == SIGTERM) ? "SIGTERM" : "SIGKILL";
 				Errorf("kill(childpid, %d) returned %d", sigstr,
@@ -572,7 +579,7 @@ void parse_command_line(struct yoyo_options *options, int argc, char **argv)
 	struct option long_options[] = {
 		{ "version", no_argument, 0, 'V' },
 		{ "help", no_argument, 0, 'h' },
-		{ "verbose", no_argument, 0, 'v' },
+		{ "verbose", optional_argument, 0, 'v' },
 		{ "wait-interval", optional_argument, 0, 'w' },
 		{ "max-hangs", optional_argument, 0, 'm' },
 		{ "max-retries", optional_argument, 0, 'r' },
@@ -612,7 +619,7 @@ void parse_command_line(struct yoyo_options *options, int argc, char **argv)
 			options->help = 1;
 			break;
 		case 'v':	/* --verbose | -v */
-			options->version = 1;
+			options->verbose = optarg ? atoi(optarg) : 1;
 			break;
 		case 'w':	/* --wait-interval | -w */
 			options->hang_check_interval = atoi(optarg);
@@ -648,4 +655,5 @@ void parse_command_line(struct yoyo_options *options, int argc, char **argv)
 	// shift-off this program + options, and exec the rest
 	// of the commandline
 	options->child_command_line = argv + optind;
+	options->child_command_line_len = argc - optind;
 }

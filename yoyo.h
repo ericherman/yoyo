@@ -12,6 +12,7 @@ struct yoyo_options {
 	int max_retries;
 	const char *fakeroot;
 	char **child_command_line;
+	int child_command_line_len;
 };
 
 struct thread_state {
@@ -70,6 +71,9 @@ void free_states_wrap(struct state_list *l, void *context);
 /* will return NULL on OOM */
 struct state_list *state_list_new(size_t length);
 void state_list_free(struct state_list *l);
+
+/* fill a buffer with file contents */
+char *slurp_text(char *buf, size_t buflen, const char *path);
 
 /* append to a string buffer, always NULL-terminates */
 int appendf(char *buf, size_t bufsize, const char *format, ...);

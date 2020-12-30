@@ -1,4 +1,5 @@
 yoyoc
+faux-rogue
 globdemo
 test_yoyo_parse_command_line
 test_process_looks_hung
@@ -33,3 +34,5 @@ $*
 *.gcda
 *.gcno
 tmp*
+coverage.info
+coverage_html

@@ -25,16 +25,20 @@ unsigned test_fixture_2(void)
 	if (strcmp(options.child_command_line[1], "2") != 0) {
 		++failures;
 	}
+	if (options.verbose) {
+		++failures;
+	}
 
 	return failures;
 }
 
 unsigned test_ls_l(void)
 {
-	const int fake_argc = 5;
-	char *fake_args[6] = {
+	const int fake_argc = 6;
+	char *fake_args[7] = {
 		"./yoyo",
 		"--wait-interval=60",
+		"--verbose",
 		"--",
 		"ls",
 		"-l",
@@ -48,6 +52,9 @@ unsigned test_ls_l(void)
 	unsigned failures = 0;
 
 	if (options.hang_check_interval != 60) {
+		++failures;
+	}
+	if (!options.verbose) {
 		++failures;
 	}
 	if (strcmp(options.child_command_line[0], "ls") != 0) {

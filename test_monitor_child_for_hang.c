@@ -8,9 +8,7 @@
 struct monitor_child_context {
 	unsigned *failures;
 	long childpid;
-	struct state_list *sl_a;
-	struct state_list *sl_b;
-	struct state_list *sl;
+	struct state_list *template_sl;
 	unsigned has_exited;
 	unsigned sleep_count;
 	unsigned get_states_count;
@@ -58,17 +56,22 @@ struct state_list *faux_get_states(long pid, void *context)
 			__FILE__, __func__, __LINE__, ctx->childpid, pid);
 	}
 
-	struct state_list *was = ctx->sl;
-
-	if (was == ctx->sl_a) {
-		ctx->sl = ctx->sl_b;
-	} else {
-		ctx->sl = ctx->sl_a;
-	}
-
 	check_for_proc_end(ctx);
 
-	return ctx->sl;
+	size_t len = ctx->has_exited ? 0 : ctx->template_sl->len;
+	struct state_list *template = ctx->template_sl;
+
+	struct state_list *new_list = state_list_new(len);
+	if (!new_list) {
+		exit(EXIT_FAILURE);
+	}
+
+	for (size_t i = 0; i < len; ++i) {
+		/* some values may have incremented during faux_sleep */
+		new_list->states[i] = template->states[i];
+	}
+
+	return new_list;
 }
 
 void faux_free_states(struct state_list *l, void *context)
@@ -77,6 +80,7 @@ void faux_free_states(struct state_list *l, void *context)
 
 	if (l) {
 		++ctx->free_states_count;
+		state_list_free(l);
 	}
 }
 
@@ -120,39 +124,26 @@ unsigned int faux_sleep(unsigned int seconds, void *context)
 		exit(EXIT_FAILURE);
 	}
 
-	struct state_list *was = ctx->sl;
-	struct state_list *next = NULL;
-
-	if (was == ctx->sl_a) {
-		next = ctx->sl_b;
-	} else {
-		next = ctx->sl_a;
-	}
-
 	if (check_for_proc_end(ctx)) {
 		return 1;
 	}
 
-	for (size_t i = 0; was && i < was->len && next && i < next->len; ++i) {
-		next->states[i].pid = was->states[i].pid;
-		next->states[i].state = was->states[i].state;
-		next->states[i].utime = was->states[i].utime;
-		next->states[i].stime = was->states[i].stime;
-	}
-
-	size_t pos = (ctx->get_states_count % (ctx->sl->len + 2));
-	if (pos < ctx->sl->len) {
-		if (ctx->get_states_count % 2) {
-			next->states[pos].utime++;
-		} else {
-			next->states[pos].stime++;
+	/* maybe update some counters */
+	if (!ctx->sig_term_count && !ctx->sig_kill_count) {
+		size_t pos = (ctx->sleep_count % (ctx->template_sl->len + 2));
+		if (pos < ctx->template_sl->len) {
+			if (ctx->get_states_count % 2) {
+				ctx->template_sl->states[pos].utime++;
+			} else {
+				ctx->template_sl->states[pos].stime++;
+			}
 		}
 	}
 
 	if (ctx->get_states_sleeping_after &&
 	    ctx->get_states_sleeping_after < ctx->get_states_count) {
-		for (size_t i = 0; i < ctx->sl->len; ++i) {
-			next->states[i].state = 'S';
+		for (size_t i = 0; i < ctx->template_sl->len; ++i) {
+			ctx->template_sl->states[i].state = 'S';
 		}
 	}
 
@@ -167,14 +158,7 @@ unsigned test_monitor_and_exit_after_4(void)
 		{.pid = 10009,.state = 'R',.utime = 6733,.stime = 5333 },
 		{.pid = 10037,.state = 'R',.utime = 0,.stime = 0 }
 	};
-	struct state_list sl_a = {.states = three_states_a,.len = 3 };
-
-	struct thread_state three_states_b[3] = {
-		{.pid = 10007,.state = 'S',.utime = 3217,.stime = 3259 },
-		{.pid = 10009,.state = 'R',.utime = 6733,.stime = 5333 },
-		{.pid = 10037,.state = 'R',.utime = 0,.stime = 0 }
-	};
-	struct state_list sl_b = {.states = three_states_b,.len = 3 };
+	struct state_list template = {.states = three_states_a,.len = 3 };
 
 	unsigned failures = 0;
 
@@ -183,9 +167,7 @@ unsigned test_monitor_and_exit_after_4(void)
 
 	ctx.failures = &failures;
 	ctx.childpid = childpid;
-	ctx.sl_a = &sl_a;
-	ctx.sl_b = &sl_b;
-	ctx.sl = &sl_a;
+	ctx.template_sl = &template;
 	ctx.get_states_exit_at = 4;
 	ctx.get_states_sleeping_after = 2;
 
@@ -229,14 +211,7 @@ unsigned test_monitor_requires_sigkill(void)
 		{.pid = 10009,.state = 'R',.utime = 6733,.stime = 5333 },
 		{.pid = 10037,.state = 'R',.utime = 0,.stime = 0 }
 	};
-	struct state_list sl_a = {.states = three_states_a,.len = 3 };
-
-	struct thread_state three_states_b[3] = {
-		{.pid = 10007,.state = 'S',.utime = 3217,.stime = 3259 },
-		{.pid = 10009,.state = 'R',.utime = 6733,.stime = 5333 },
-		{.pid = 10037,.state = 'R',.utime = 0,.stime = 0 }
-	};
-	struct state_list sl_b = {.states = three_states_b,.len = 3 };
+	struct state_list template = {.states = three_states_a,.len = 3 };
 
 	unsigned failures = 0;
 
@@ -245,9 +220,7 @@ unsigned test_monitor_requires_sigkill(void)
 
 	ctx.failures = &failures;
 	ctx.childpid = childpid;
-	ctx.sl_a = &sl_a;
-	ctx.sl_b = &sl_b;
-	ctx.sl = &sl_a;
+	ctx.template_sl = &template;
 	ctx.get_states_sleeping_after = 2;
 	ctx.sig_kill_count_to_set_exited = 1;
 

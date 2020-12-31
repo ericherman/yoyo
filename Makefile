@@ -7,6 +7,8 @@ BROWSER=firefox
 
 default: check
 
+YOYO_BIN=yoyoc
+
 ifndef DEBUG
 DEBUG=0
 endif
@@ -30,7 +32,7 @@ FAILCOUNT:=$(shell mktemp --tmpdir=. --suffix=.failcount)
 LINDENT=indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1 -il0
 # see also: https://www.kernel.org/doc/Documentation/process/coding-style.rst
 
-yoyoc: yoyo.o yoyo-main.c
+$(YOYO_BIN): yoyo.o yoyo-main.c
 	$(CC) $(CFLAGS) $^ -o $@
 
 yoyo.o: yoyo.c yoyo.h
@@ -60,7 +62,7 @@ test_slurp_text: yoyo.o tests/test_slurp_text.c
 check_slurp_text: test_slurp_text
 	./test_slurp_text
 
-check-yoyoc: check_yoyo_parse_command_line \
+check-$(YOYO_BIN): check_yoyo_parse_command_line \
 		check_slurp_text \
 		check_process_looks_hung \
 		check_monitor_child_for_hang
@@ -82,39 +84,39 @@ check-ruby:
 	FAILCOUNT=$(FAILCOUNT) ./yoyo ./fixture $(FIXTURE_SLEEP)
 	@echo "$@ SUCCESS"
 
-check: check-yoyoc yoyoc faux-rogue
+check: check-$(YOYO_BIN) $(YOYO_BIN) faux-rogue
 	@echo
-	./yoyoc --version
+	./$(YOYO_BIN) --version
 	@echo
-	./yoyoc --help
+	./$(YOYO_BIN) --help
 	@echo
 	@echo "succeed first try succeed"
 	echo "0" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./yoyoc \
+	FAILCOUNT=$(FAILCOUNT) ./$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		$(YOYO_OPTS) ./faux-rogue $(FIXTURE_SLEEP)
 	@echo
 	@echo "fail once, then succeed"
 	echo "1" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./yoyoc \
+	FAILCOUNT=$(FAILCOUNT) ./$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		$(YOYO_OPTS) ./faux-rogue $(FIXTURE_SLEEP)
 	@echo
 	@echo "succeed after a long time"
 	echo "0" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./yoyoc \
+	FAILCOUNT=$(FAILCOUNT) ./$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		$(YOYO_OPTS) ./faux-rogue $(FIXTURE_SLEEP_LONG)
 	@echo
 	echo "./faux-rogue will hang twice"
 	echo "-2" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./yoyoc \
+	FAILCOUNT=$(FAILCOUNT) ./$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		$(YOYO_OPTS) ./faux-rogue $(FIXTURE_SLEEP)
 	@echo
 	echo "now ./faux-rogue will hang every time"
 	echo "-100" > $(FAILCOUNT)
-	-( FAILCOUNT=$(FAILCOUNT) ./yoyoc \
+	-( FAILCOUNT=$(FAILCOUNT) ./$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--max-hangs=3 --max-retries=2 \
 		$(YOYO_OPTS) ./faux-rogue $(FIXTURE_SLEEP) )
@@ -129,7 +131,7 @@ globdemo: tests/globdemo.c
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm -rvf yoyoc *.failcount *.slurp `cat .gitignore | sed -e 's/#.*//'`
+	rm -rvf $(YOYO_BIN) *.failcount *.slurp `cat .gitignore | sed -e 's/#.*//'`
 
 mrproper:
 	git clean -dffx

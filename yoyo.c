@@ -547,9 +547,13 @@ void exit_reason_to_str(struct exit_reason *reason, char *buf, size_t bufsize)
 		if (reason->termsig) {
 			appendf(buf, bufsize, " %d", reason->termsig);
 		}
+		/* we really do not need to test that coredump is in
+		 * the string  --eric.herman 2020-12-31 */
+		/* LCOV_EXCL_START */
 		if (reason->coredump) {
 			appendf(buf, bufsize, " produced a core dump");
 		}
+		/* LCOV_EXCL_STOP */
 	}
 
 	if (reason->stopped) {

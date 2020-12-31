@@ -74,7 +74,14 @@ test_yoyo_main: yoyo.o tests/test_yoyo_main.c
 check_yoyo_main: test_yoyo_main
 	./test_yoyo_main
 
+test_exit_reason: yoyo.o tests/test_exit_reason.c
+	$(CC) $(CFLAGS) $^ -o $@
+
+check_exit_reason: test_exit_reason
+	./test_exit_reason
+
 check-$(YOYO_BIN): check_yoyo_parse_command_line \
+		check_exit_reason \
 		check_yoyo_main \
 		check_slurp_text \
 		check_state_list_new \

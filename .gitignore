@@ -7,6 +7,7 @@ test_monitor_child_for_hang
 test_slurp_text
 test_state_list_new
 test_yoyo_main
+test_exit_reason
 
 ###################
 # backup files

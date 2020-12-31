@@ -21,7 +21,7 @@ CFLAGS += -DDEBUG -O0 \
 	--coverage
 endif
 
-CFLAGS += -g -Wall -Wextra -pedantic -Werror
+CFLAGS += -g -Wall -Wextra -pedantic -Werror -I.
 
 SHELL=/bin/bash
 FAILCOUNT:=$(shell mktemp --tmpdir=. --suffix=.failcount)
@@ -36,25 +36,25 @@ yoyoc: yoyo.o yoyo-main.c
 yoyo.o: yoyo.c yoyo.h
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-test_yoyo_parse_command_line: yoyo.o test_yoyo_parse_command_line.c
+test_yoyo_parse_command_line: yoyo.o tests/test_yoyo_parse_command_line.c
 	$(CC) $(CFLAGS) $^ -o $@
 
 check_yoyo_parse_command_line: test_yoyo_parse_command_line
 	./test_yoyo_parse_command_line
 
-test_process_looks_hung: yoyo.o test_process_looks_hung.c
+test_process_looks_hung: yoyo.o tests/test_process_looks_hung.c
 	$(CC) $(CFLAGS) $^ -o $@
 
 check_process_looks_hung: test_process_looks_hung
 	./test_process_looks_hung
 
-test_monitor_child_for_hang: yoyo.o test_monitor_child_for_hang.c
+test_monitor_child_for_hang: yoyo.o tests/test_monitor_child_for_hang.c
 	$(CC) $(CFLAGS) $^ -o $@
 
 check_monitor_child_for_hang: test_monitor_child_for_hang
 	./test_monitor_child_for_hang
 
-test_slurp_text: yoyo.o test_slurp_text.c
+test_slurp_text: yoyo.o tests/test_slurp_text.c
 	$(CC) $(CFLAGS) $^ -o $@
 
 check_slurp_text: test_slurp_text
@@ -66,7 +66,7 @@ check-yoyoc: check_yoyo_parse_command_line \
 		check_monitor_child_for_hang
 	@echo "$@ SUCCESS"
 
-faux-rogue: faux-rogue.c
+faux-rogue: tests/faux-rogue.c
 	$(CC) $(CFLAGS) $^ -o $@
 
 FIXTURE_SLEEP ?= 2
@@ -125,7 +125,7 @@ check: check-yoyoc yoyoc faux-rogue
 check-all: check check-ruby
 	@echo "$@ SUCCESS"
 
-globdemo: globdemo.c
+globdemo: tests/globdemo.c
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:

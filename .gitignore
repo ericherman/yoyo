@@ -5,6 +5,7 @@ test_yoyo_parse_command_line
 test_process_looks_hung
 test_monitor_child_for_hang
 test_slurp_text
+test_state_list_new
 
 ###################
 # backup files

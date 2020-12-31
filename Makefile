@@ -62,8 +62,15 @@ test_slurp_text: yoyo.o tests/test_slurp_text.c
 check_slurp_text: test_slurp_text
 	./test_slurp_text
 
+test_state_list_new: yoyo.o tests/test_state_list_new.c
+	$(CC) $(CFLAGS) $^ -o $@
+
+check_state_list_new: test_state_list_new
+	./test_state_list_new
+
 check-$(YOYO_BIN): check_yoyo_parse_command_line \
 		check_slurp_text \
+		check_state_list_new \
 		check_process_looks_hung \
 		check_monitor_child_for_hang
 	@echo "$@ SUCCESS"
@@ -138,7 +145,7 @@ mrproper:
 	git submodule foreach --recursive git clean -dffx
 
 tidy:
-	$(LINDENT) -T FILE *.c *.h
+	$(LINDENT) -T FILE *.c *.h tests/*.c
 
 lcov: check
 	lcov    --checksum \

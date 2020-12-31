@@ -64,14 +64,26 @@ static void *discard_const(const void *v)
   Thus, we will need some global space to pass data between functions.
 */
 
-static pid_t global_childpid;
+static pid_t global_childpid = 0;
 
-static struct exit_reason *child_trap_exit_code_singleton;
+static struct exit_reason *child_trap_exit_code_singleton = NULL;
 
-static int global_verbose;
+/* global verbose, can be set via commandline options, or directly in tests */
+int yoyo_verbose = 0;
+
+/* global pointers to stdout, stderr if tests wish to capture these */
+FILE *yoyo_stdout = NULL;
+#define Ystdout (yoyo_stdout ? yoyo_stdout : stdout)
+FILE *yoyo_stderr = NULL;
+#define Ystderr (yoyo_stderr ? yoyo_stderr : stderr)
+
+/* global pointers to calloc(), free() provided for testing OOM and such */
+mem_alloc_func yoyo_calloc = calloc;
+mem_free_func yoyo_free = free;
 
 /*************************************************************************/
 /* functions */
+
 int yoyo_main(int argc, char **argv)
 {
 	struct yoyo_options options;
@@ -79,13 +91,14 @@ int yoyo_main(int argc, char **argv)
 
 	int child_command_line_len = options.child_command_line_len;
 	if (options.version) {
-		printf("%s version %s\n", YOYO_NAME, YOYO_VERSION);
+		fprintf(Ystdout, "%s version %s\n", YOYO_NAME, YOYO_VERSION);
 		return 0;
 	} else if (options.help || !child_command_line_len) {
-		print_help(stdout, argv[0]);
-		return (options.help
-			|| child_command_line_len) ? EXIT_SUCCESS :
-		    EXIT_FAILURE;
+		print_help(Ystdout, argv[0]);
+		if (!options.help && !child_command_line_len) {
+			return EXIT_FAILURE;
+		}
+		return EXIT_SUCCESS;
 	}
 	int max_retries = options.max_retries;
 	char **child_command_line = options.child_command_line;
@@ -94,9 +107,9 @@ int yoyo_main(int argc, char **argv)
 	const char *fakeroot = options.fakeroot;
 
 	// setup globals for sharing data with signal handler
-	global_verbose = options.verbose;
-	if (global_verbose) {
-		printf("global_verbose: %d\n", global_verbose);
+	yoyo_verbose = options.verbose;
+	if (yoyo_verbose > 0) {
+		fprintf(Ystdout, "yoyo_verbose: %d\n", yoyo_verbose);
 	}
 
 	struct exit_reason reason;
@@ -115,25 +128,24 @@ int yoyo_main(int argc, char **argv)
 		global_childpid = fork();
 
 		if (global_childpid < 0) {
-			/* no intention of testing fork failing */
-			/* LCOV_EXCL_START */
 			Errorf("fork() failed?");
 			return EXIT_FAILURE;
-			/* LCOV_EXCL_STOP */
 		} else if (global_childpid == 0) {
 			// in child process
-			if (global_verbose) {
+			if (yoyo_verbose > 0) {
 				for (int i = 0; i < child_command_line_len; ++i) {
-					printf("%s ", child_command_line[i]);
+					fprintf(Ystdout, "%s ",
+						child_command_line[i]);
 				}
-				printf("\n");
-				fflush(stdout);
+				fprintf(Ystdout, "\n");
+				fflush(Ystdout);
 			}
 			return execv(child_command_line[0], child_command_line);
 		}
 
-		if (global_verbose) {
-			printf("child_pid: %ld\n", (long)global_childpid);
+		if (yoyo_verbose > 0) {
+			fprintf(Ystdout, "child_pid: %ld\n",
+				(long)global_childpid);
 		}
 
 		state_list_get_func get_states = get_states_proc;
@@ -149,21 +161,29 @@ int yoyo_main(int argc, char **argv)
 				       context);
 
 		if (reason.exit_code != 0) {
-			printf("Child exited with status %d\n",
-			       reason.exit_code);
+			if (yoyo_verbose >= 0) {
+				fprintf(Ystdout,
+					"Child exited with status %d\n",
+					reason.exit_code);
+			}
 		} else if (reason.exited) {
-			printf("Child completed successfully\n");
+			if (yoyo_verbose >= 0) {
+				fprintf(Ystdout,
+					"Child completed successfully\n");
+			}
 			return EXIT_SUCCESS;
 		} else {
 			char er_buf[250];
 			exit_reason_to_str(&reason, er_buf, 250);
-			printf("child %ld:\n%s\n", (long)global_childpid,
-			       er_buf);
+			fprintf(Ystdout, "child %ld:\n%s\n",
+				(long)global_childpid, er_buf);
 		}
 	}
 
-	fflush(stdout);
-	fprintf(stderr, "Retries limit reached.\n");
+	if (yoyo_verbose >= 0) {
+		fflush(Ystdout);
+		fprintf(Ystderr, "Retries limit reached.\n");
+	}
 	return EXIT_FAILURE;
 }
 
@@ -238,7 +258,7 @@ int thread_state_from_path(struct thread_state *ts, const char *path)
 	char buf[buf_len];
 	errno = 0;
 	char *rbuf = slurp_text(buf, buf_len, path);
-	if (global_verbose > 1 || (!rbuf && errno != ENOENT)) {
+	if (yoyo_verbose > 1 || (!rbuf && errno != ENOENT)) {
 		Errorf("slurp_text returned %p", rbuf);
 	}
 
@@ -247,7 +267,7 @@ int thread_state_from_path(struct thread_state *ts, const char *path)
 	errno = 0;
 	int matched = sscanf(buf, stat_scanf, &ts->pid, &ts->state, &ts->utime,
 			     &ts->stime);
-	if (global_verbose > 1 || matched != 4) {
+	if (yoyo_verbose > 1 || matched != 4) {
 		Errorf("scanf matched %d of 4 fields for %s", matched, path);
 	}
 
@@ -257,20 +277,20 @@ int thread_state_from_path(struct thread_state *ts, const char *path)
 struct state_list *state_list_new(size_t length)
 {
 	size_t size = sizeof(struct state_list);
-	struct state_list *sl = calloc(1, size);
+	struct state_list *sl = yoyo_calloc(1, size);
 	if (!sl) {
-		Errorf("could not calloc (%zu bytes)?", size);
+		Errorf("could not alloc (%zu bytes)?", size);
 		return NULL;
 	}
 
 	sl->len = length;
 	size = sizeof(struct thread_state);
-	sl->states = calloc(sl->len, size);
+	sl->states = yoyo_calloc(sl->len, size);
 	if (!sl->states) {
 		size_t total = sl->len * size;
-		Errorf("could not calloc(%zu, %zu) (%zu bytes)?", sl->len, size,
+		Errorf("could not alloc(%zu, %zu) (%zu bytes)?", sl->len, size,
 		       total);
-		free(sl);
+		yoyo_free(sl);
 		return NULL;
 	}
 	return sl;
@@ -279,15 +299,15 @@ struct state_list *state_list_new(size_t length)
 void state_list_free(struct state_list *l)
 {
 	if (l) {
-		free(l->states);
-		free(l);
+		yoyo_free(l->states);
+		yoyo_free(l);
 	}
 }
 
 /* errno ENOENT: No such file or directory */
 int ignore_no_such_file(const char *epath, int eerrno)
 {
-	if (global_verbose > 1 || errno != ENOENT) {
+	if (yoyo_verbose > 1 || errno != ENOENT) {
 		Errorf("%s (%d)", epath, eerrno);
 	}
 	return 0;
@@ -301,8 +321,8 @@ struct state_list *get_states_proc(long pid, void *context)
 	char pattern[FILENAME_MAX + 3];
 	pid_to_stat_pattern(pattern, fakeroot, pid);
 
-	if (global_verbose) {
-		printf("pattern == '%s'\n", pattern);
+	if (yoyo_verbose > 0) {
+		fprintf(Ystdout, "pattern == '%s'\n", pattern);
 	}
 
 	glob_t threads;
@@ -311,11 +331,12 @@ struct state_list *get_states_proc(long pid, void *context)
 	glob(pattern, GLOB_MARK, errfunc, &threads);
 
 	size_t len = threads.gl_pathc;
-	if (global_verbose) {
-		printf("matches for %ld: %zu\n", pid, len);
+	if (yoyo_verbose > 0) {
+		fprintf(Ystdout, "matches for %ld: %zu\n", pid, len);
 	}
 	struct state_list *sl = state_list_new(len);
-	/* by inspection, does the right thing, no intention test */
+	/* by inspection, does the right thing (exits on malloc failure),
+	 * no intention test --eric.herman 2020-12-31 */
 	/* LCOV_EXCL_START */
 	if (!sl) {
 		exit(EXIT_FAILURE);
@@ -325,14 +346,14 @@ struct state_list *get_states_proc(long pid, void *context)
 	int err = 0;
 	for (size_t i = 0; i < len; ++i) {
 		const char *path = threads.gl_pathv[i];
-		if (global_verbose) {
-			printf("\t%s\n", path);
+		if (yoyo_verbose > 0) {
+			fprintf(Ystdout, "\t%s\n", path);
 		}
 		struct thread_state *ts = &sl->states[i];
 		err += thread_state_from_path(ts, path);
 	}
 
-	if (err || global_verbose) {
+	if (err || (yoyo_verbose > 0)) {
 		Errorf("get_states for pid: %ld (fakeroot:'%s')"
 		       " errors: %d", (long)pid, fakeroot, err);
 	}
@@ -362,8 +383,8 @@ unsigned int unistd_sleep(unsigned int seconds, void *context)
 
 void exit_reason_child_trap(int sig)
 {
-	if (global_verbose) {
-		printf("exit_reason_child_trap(%d)\n", sig);
+	if (yoyo_verbose > 0) {
+		fprintf(Ystdout, "exit_reason_child_trap(%d)\n", sig);
 	}
 
 	pid_t any_child = -1;
@@ -377,14 +398,14 @@ void exit_reason_child_trap(int sig)
 				wait_status);
 	}
 
-	if (global_verbose) {
+	if (yoyo_verbose > 0) {
 		struct exit_reason tmp;
 		exit_reason_set(&tmp, pid, wait_status);
 		size_t len = 255;
 		char buf[len];
 		exit_reason_to_str(&tmp, buf, len);
-		printf("exit_reason_child_trap(%d) (%d): %s\n", sig,
-		       wait_status, buf);
+		fprintf(Ystdout, "exit_reason_child_trap(%d) (%d): %s\n", sig,
+			wait_status, buf);
 	}
 }
 
@@ -410,7 +431,7 @@ void monitor_child_for_hang(long childpid, unsigned max_hangs,
 			errno = 0;
 			int err = kill_child(childpid, sig, context);
 			/* ESRCH: No such process */
-			if (global_verbose || (err && (errno != ESRCH))) {
+			if ((yoyo_verbose > 0) || (err && (errno != ESRCH))) {
 				const char *sigstr =
 				    (sig == SIGTERM) ? "SIGTERM" : "SIGKILL";
 				Errorf("kill(childpid, %d) returned %d", sigstr,
@@ -419,9 +440,9 @@ void monitor_child_for_hang(long childpid, unsigned max_hangs,
 			sleep_seconds(1, context);
 		} else {
 			hang_count = 0;
-			if (global_verbose) {
-				printf("Child still appears to be"
-				       " doing something worthwhile\n");
+			if (yoyo_verbose > 0) {
+				fprintf(Ystdout, "Child still appears to be"
+					" doing something worthwhile\n");
 			}
 		}
 		free_states(previous, context);
@@ -452,21 +473,23 @@ void errorf(const char *file, int line, const char *format, ...)
 {
 	int _errorf_save = errno;
 	errno = 0;
-
-	fflush(stdout);
-	fprintf(stderr, "%s:%d ", file, line);
+	if (yoyo_verbose < 0) {
+		return;
+	}
+	fflush(Ystdout);
+	fprintf(Ystderr, "%s:%d ", file, line);
 
 	va_list args;
 
 	va_start(args, format);
-	vfprintf(stderr, format, args);
+	vfprintf(Ystderr, format, args);
 	va_end(args);
 
 	if (_errorf_save) {
-		fprintf(stderr, " errno %d: %s", _errorf_save,
+		fprintf(Ystderr, " errno %d: %s", _errorf_save,
 			strerror(_errorf_save));
 	}
-	fprintf(stderr, "\n");
+	fprintf(Ystderr, "\n");
 }
 
 void exit_reason_clear(struct exit_reason *reason)

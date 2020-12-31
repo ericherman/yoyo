@@ -68,7 +68,14 @@ test_state_list_new: yoyo.o tests/test_state_list_new.c
 check_state_list_new: test_state_list_new
 	./test_state_list_new
 
+test_yoyo_main: yoyo.o tests/test_yoyo_main.c
+	$(CC) $(CFLAGS) $^ -o $@
+
+check_yoyo_main: test_yoyo_main
+	./test_yoyo_main
+
 check-$(YOYO_BIN): check_yoyo_parse_command_line \
+		check_yoyo_main \
 		check_slurp_text \
 		check_state_list_new \
 		check_process_looks_hung \

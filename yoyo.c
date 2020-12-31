@@ -81,6 +81,12 @@ FILE *yoyo_stderr = NULL;
 mem_alloc_func yoyo_calloc = calloc;
 mem_free_func yoyo_free = free;
 
+typedef pid_t(*fork_func) (void);
+fork_func yoyo_fork = fork;
+
+typedef int (*execv_func)(const char *pathname, char *const argv[]);
+execv_func yoyo_execv = execv;
+
 /*************************************************************************/
 /* functions */
 
@@ -125,7 +131,7 @@ int yoyo_main(int argc, char **argv)
 		exit_reason_clear(&reason);
 
 		errno = 0;
-		global_childpid = fork();
+		global_childpid = yoyo_fork();
 
 		if (global_childpid < 0) {
 			Errorf("fork() failed?");
@@ -140,7 +146,8 @@ int yoyo_main(int argc, char **argv)
 				fprintf(Ystdout, "\n");
 				fflush(Ystdout);
 			}
-			return execv(child_command_line[0], child_command_line);
+			return yoyo_execv(child_command_line[0],
+					  child_command_line);
 		}
 
 		if (yoyo_verbose > 0) {

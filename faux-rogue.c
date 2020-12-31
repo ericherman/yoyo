@@ -26,17 +26,17 @@ enum action_type get_action(const char *failpath)
 			fclose(failfile);
 		}
 	}
-	if (failcount < 0) {
-		fprintf(stderr, "hang count: %d\n", -failcount);
-	} else {
-		fprintf(stderr, "fail count: %d\n", failcount);
-	}
 
-	enum action_type action = succeed;
-	if (failcount > 0) {
-		action = fail;
-	} else if (failcount < 0) {
+	enum action_type action;
+	if (failcount < 0) {
 		action = hang;
+		fprintf(stderr, "hang count: %d\n", -failcount);
+	} else if (failcount > 0) {
+		action = fail;
+		fprintf(stderr, "fail count: %d\n", failcount);
+	} else {
+		action = succeed;
+		fprintf(stderr, "fail/hang count: 0 (succeed)\n");
 	}
 
 	return action;

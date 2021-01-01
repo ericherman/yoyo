@@ -1,13 +1,5 @@
-yoyoc
-faux-rogue
-globdemo
-test_yoyo_parse_command_line
-test_process_looks_hung
-test_monitor_child_for_hang
-test_slurp_text
-test_state_list_new
-test_yoyo_main
-test_exit_reason
+build
+debug
 
 ###################
 # backup files

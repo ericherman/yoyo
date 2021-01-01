@@ -1,5 +1,8 @@
 build
 debug
+*.out
+*.slurp
+*.failcount
 
 ###################
 # backup files

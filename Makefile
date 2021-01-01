@@ -175,22 +175,36 @@ debug/faux-rogue: tests/faux-rogue.c
 
 build--version: ./build/$(YOYO_BIN)
 	@echo
-	./build/$(YOYO_BIN) --version
+	./build/$(YOYO_BIN) --version >$@.out 2>&1
+	grep '0.0.1' $@.out
+	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
-debug-version: ./debug/$(YOYO_BIN)
+debug--version: ./debug/$(YOYO_BIN)
 	@echo
-	./debug/$(YOYO_BIN) --version
+	./debug/$(YOYO_BIN) --version >$@.out 2>&1
+	grep '0.0.1' $@.out
+	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
 build--help:./build/$(YOYO_BIN)
 	@echo
-	./build/$(YOYO_BIN) --help
+	./build/$(YOYO_BIN) --help >$@.out 2>&1
+	grep 'wait-interval' $@.out
+	grep 'max-hangs' $@.out
+	grep 'max-retries' $@.out
+	grep 'verbose' $@.out
+	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
 debug--help: ./debug/$(YOYO_BIN)
 	@echo
-	./debug/$(YOYO_BIN) --help
+	./debug/$(YOYO_BIN) --help >$@.out 2>&1
+	grep 'wait-interval' $@.out
+	grep 'max-hangs' $@.out
+	grep 'max-retries' $@.out
+	grep 'verbose' $@.out
+	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
 check-build-acceptance-succeed-first-try: build/$(YOYO_BIN) build/faux-rogue
@@ -200,8 +214,10 @@ check-build-acceptance-succeed-first-try: build/$(YOYO_BIN) build/faux-rogue
 	FAILCOUNT=tmp.$@.failcount \
 		./build/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
-		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP)
-	rm -fv tmp.$@.failcount
+		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP) \
+		>$@.out 2>&1
+	grep '(succeed)' $@.out
+	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-debug-acceptance-succeed-first-try: debug/$(YOYO_BIN) debug/faux-rogue
@@ -212,8 +228,10 @@ check-debug-acceptance-succeed-first-try: debug/$(YOYO_BIN) debug/faux-rogue
 		./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--verbose=2 \
-		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP)
-	rm -fv tmp.$@.failcount
+		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
+		>$@.out 2>&1
+	grep '(succeed)' $@.out
+	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-build-acceptance-fail-one-then-succeed: build/$(YOYO_BIN) build/faux-rogue
@@ -223,43 +241,55 @@ check-build-acceptance-fail-one-then-succeed: build/$(YOYO_BIN) build/faux-rogue
 	FAILCOUNT=tmp.$@.failcount \
 		./build/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
-		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP)
-	rm -fv tmp.$@.failcount
+		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP) \
+		>$@.out 2>&1
+	grep 'Child exited with status 127' $@.out
+	grep '(succeed)' $@.out
+	grep 0 tmp.$@.failcount
+	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-debug-acceptance-fail-one-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
 	@echo
 	@echo "fail once, then succeed"
 	echo "1" > tmp.$@.failcount
-	FAILCOUNT=tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount \
 		./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--verbose=2 \
-		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP)
-	rm -fv tmp.$@.failcount
+		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
+		>$@.out 2>&1
+	grep 'Child exited with status 127' $@.out
+	grep '(succeed)' $@.out
+	grep 0 tmp.$@.failcount
+	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-build-acceptance-succeed-after-long-time: build/$(YOYO_BIN) build/faux-rogue
 	@echo
 	@echo "succeed after a long time"
 	echo "0" > tmp.$@.failcount
-	FAILCOUNT=tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount \
 		./build/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
-		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP_LONG)
-	rm -fv tmp.$@.failcount
+		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP_LONG) \
+		>$@.out 2>&1
+	grep '(succeed)' $@.out
+	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-debug-acceptance-succeed-after-long-time: debug/$(YOYO_BIN) debug/faux-rogue
 	@echo
 	@echo "succeed after a long time"
 	echo "0" > tmp.$@.failcount
-	FAILCOUNT=tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount \
 		./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--verbose=2 \
-		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP_LONG)
-	rm -fv tmp.$@.failcount
+		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP_LONG) \
+		>$@.out 2>&1
+	grep '(succeed)' $@.out
+	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-build-acceptance-hang-twice-then-succeed: build/$(YOYO_BIN) build/faux-rogue
@@ -268,8 +298,11 @@ check-build-acceptance-hang-twice-then-succeed: build/$(YOYO_BIN) build/faux-rog
 	FAILCOUNT=tmp.$@.failcount \
 		./build/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
-		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP)
-	rm -fv tmp.$@.failcount
+		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP) \
+		>$@.out 2>&1
+	grep 'terminated by a signal 15' $@.out
+	grep '(succeed)' $@.out
+	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-debug-acceptance-hang-twice-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
@@ -279,8 +312,11 @@ check-debug-acceptance-hang-twice-then-succeed: debug/$(YOYO_BIN) debug/faux-rog
 		./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--verbose=2 \
-		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP)
-	rm -fv tmp.$@.failcount
+		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
+		>$@.out 2>&1
+	grep 'terminated by a signal 15' $@.out
+	grep '(succeed)' $@.out
+	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-build-acceptance-fail-every-time: build/$(YOYO_BIN) build/faux-rogue
@@ -291,8 +327,10 @@ check-build-acceptance-fail-every-time: build/$(YOYO_BIN) build/faux-rogue
 		./build/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--max-hangs=3 --max-retries=2 \
-		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP) )
-	rm -fv tmp.$@.failcount
+		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP) \
+		>$@.out 2>&1 )
+	grep 'Retries limit reached' $@.out
+	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-debug-acceptance-fail-every-time: debug/$(YOYO_BIN) debug/faux-rogue
@@ -304,8 +342,10 @@ check-debug-acceptance-fail-every-time: debug/$(YOYO_BIN) debug/faux-rogue
 		--wait-interval=$(WAIT_INTERVAL) \
 		--max-hangs=3 --max-retries=2 \
 		--verbose=2 \
-		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) )
-	rm -fv tmp.$@.failcount
+		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
+		>$@.out 2>&1 )
+	grep 'Retries limit reached' $@.out
+	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-build-acceptance-hang-every-time: build/$(YOYO_BIN) build/faux-rogue
@@ -316,8 +356,10 @@ check-build-acceptance-hang-every-time: build/$(YOYO_BIN) build/faux-rogue
 		./build/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--max-hangs=3 --max-retries=2 \
-		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP) )
-	rm -fv tmp.$@.failcount
+		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP) \
+		>$@.out 2>&1 )
+	grep 'Retries limit reached' $@.out
+	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-debug-acceptance-hang-every-time: debug/$(YOYO_BIN) debug/faux-rogue
@@ -329,8 +371,10 @@ check-debug-acceptance-hang-every-time: debug/$(YOYO_BIN) debug/faux-rogue
 		--wait-interval=$(WAIT_INTERVAL) \
 		--max-hangs=3 --max-retries=2 \
 		--verbose=2 \
-		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) )
-	rm -fv tmp.$@.failcount
+		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
+		>$@.out 2>&1 )
+	grep 'Retries limit reached' $@.out
+	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-build-acceptance: \
@@ -345,7 +389,7 @@ check-build-acceptance: \
 	@echo "SUCCESS! ($@)"
 
 check-debug-acceptance: \
-		debug-version \
+		debug--version \
 		debug--help \
 		check-debug-acceptance-succeed-first-try \
 		check-debug-acceptance-fail-one-then-succeed \

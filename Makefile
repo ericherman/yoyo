@@ -8,8 +8,8 @@ BROWSER=firefox
 YOYO_BIN=yoyo
 
 FIXTURE_SLEEP ?= 2
-WAIT_INTERVAL ?= 4
-FIXTURE_SLEEP_LONG ?= 6
+WAIT_INTERVAL ?= 5
+FIXTURE_SLEEP_LONG ?= 8
 
 COMMON_CFLAGS += -g -Wall -Wextra -pedantic -Werror -I./src $(CFLAGS)
 
@@ -22,7 +22,6 @@ DEBUG_CFLAGS += -DDEBUG -O0 $(COMMON_CFLAGS) \
 	--coverage
 
 SHELL=/bin/bash
-FAILCOUNT:=$(shell mktemp --tmpdir=. --suffix=.failcount)
 
 # extracted from https://github.com/torvalds/linux/blob/master/scripts/Lindent
 LINDENT=indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1 -il0
@@ -151,7 +150,7 @@ check-build-unit: check_build_yoyo_parse_command_line \
 		check_build_state_list_new \
 		check_build_process_looks_hung \
 		check_build_monitor_child_for_hang
-	@echo "$@ SUCCESS"
+	@echo "SUCCESS! ($@)"
 
 check-debug-unit: check_debug_yoyo_parse_command_line \
 		check_debug_exit_reason \
@@ -160,7 +159,7 @@ check-debug-unit: check_debug_yoyo_parse_command_line \
 		check_debug_state_list_new \
 		check_debug_process_looks_hung \
 		check_debug_monitor_child_for_hang
-	@echo "$@ SUCCESS"
+	@echo "SUCCESS! ($@)"
 
 build/faux-rogue: tests/faux-rogue.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
@@ -168,99 +167,197 @@ build/faux-rogue: tests/faux-rogue.c
 debug/faux-rogue: tests/faux-rogue.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-check-build-acceptance: build/$(YOYO_BIN) build/faux-rogue
+
+build--version: ./build/$(YOYO_BIN)
 	@echo
 	./build/$(YOYO_BIN) --version
-	@echo
-	./build/$(YOYO_BIN) --help
-	@echo
-	@echo "succeed first try succeed"
-	echo "0" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./build/$(YOYO_BIN) \
-		--wait-interval=$(WAIT_INTERVAL) \
-		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP)
-	@echo
-	@echo "fail once, then succeed"
-	echo "1" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./build/$(YOYO_BIN) \
-		--wait-interval=$(WAIT_INTERVAL) \
-		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP)
-	@echo
-	@echo "succeed after a long time"
-	echo "0" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./build/$(YOYO_BIN) \
-		--wait-interval=$(WAIT_INTERVAL) \
-		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP_LONG)
-	@echo
-	echo "./build/faux-rogue will hang twice"
-	echo "-2" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./build/$(YOYO_BIN) \
-		--wait-interval=$(WAIT_INTERVAL) \
-		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP)
-	@echo
-	echo "now ./build/faux-rogue will hang every time"
-	echo "-100" > $(FAILCOUNT)
-	-( FAILCOUNT=$(FAILCOUNT) ./build/$(YOYO_BIN) \
-		--wait-interval=$(WAIT_INTERVAL) \
-		--max-hangs=3 --max-retries=2 \
-		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP) )
-	@echo
-	rm -fv $(FAILCOUNT)
-	@echo "$@ SUCCESS"
+	@echo "SUCCESS! ($@)"
 
-check-debug-acceptance: debug/$(YOYO_BIN) debug/faux-rogue
+debug-version: ./debug/$(YOYO_BIN)
 	@echo
 	./debug/$(YOYO_BIN) --version
+	@echo "SUCCESS! ($@)"
+
+build--help:./build/$(YOYO_BIN)
+	@echo
+	./build/$(YOYO_BIN) --help
+	@echo "SUCCESS! ($@)"
+
+debug--help: ./debug/$(YOYO_BIN)
 	@echo
 	./debug/$(YOYO_BIN) --help
+	@echo "SUCCESS! ($@)"
+
+check-build-acceptance-succeed-first-try: build/$(YOYO_BIN) build/faux-rogue
 	@echo
-	@echo "succeed first try succeed"
-	echo "0" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./debug/$(YOYO_BIN) \
+	@echo "succeed first try"
+	echo "0" > tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount \
+		./build/$(YOYO_BIN) \
+		--wait-interval=$(WAIT_INTERVAL) \
+		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP)
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-debug-acceptance-succeed-first-try: debug/$(YOYO_BIN) debug/faux-rogue
+	@echo
+	@echo "succeed first try"
+	echo "0" > tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount \
+		./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--verbose=2 \
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP)
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-build-acceptance-fail-one-then-succeed: build/$(YOYO_BIN) build/faux-rogue
 	@echo
 	@echo "fail once, then succeed"
-	echo "1" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./debug/$(YOYO_BIN) \
+	echo "1" > tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount \
+		./build/$(YOYO_BIN) \
+		--wait-interval=$(WAIT_INTERVAL) \
+		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP)
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-debug-acceptance-fail-one-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
+	@echo
+	@echo "fail once, then succeed"
+	echo "1" > tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount
+		./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--verbose=2 \
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP)
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-build-acceptance-succeed-after-long-time: build/$(YOYO_BIN) build/faux-rogue
 	@echo
 	@echo "succeed after a long time"
-	echo "0" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./debug/$(YOYO_BIN) \
+	echo "0" > tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount
+		./build/$(YOYO_BIN) \
+		--wait-interval=$(WAIT_INTERVAL) \
+		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP_LONG)
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-debug-acceptance-succeed-after-long-time: debug/$(YOYO_BIN) debug/faux-rogue
+	@echo
+	@echo "succeed after a long time"
+	echo "0" > tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount
+		./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--verbose=2 \
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP_LONG)
-	@echo
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-build-acceptance-hang-twice-then-succeed: build/$(YOYO_BIN) build/faux-rogue
+	echo "./build/faux-rogue will hang twice"
+	echo "-2" > tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount \
+		./build/$(YOYO_BIN) \
+		--wait-interval=$(WAIT_INTERVAL) \
+		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP)
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-debug-acceptance-hang-twice-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
 	echo "./debug/faux-rogue will hang twice"
-	echo "-2" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./debug/$(YOYO_BIN) \
+	echo "-2" > tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount \
+		./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--verbose=2 \
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP)
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-build-acceptance-fail-every-time: build/$(YOYO_BIN) build/faux-rogue
+	@echo
+	echo "now ./build/faux-rogue will hang every time"
+	echo "100" > tmp.$@.failcount
+	-( FAILCOUNT=tmp.$@.failcount \
+		./build/$(YOYO_BIN) \
+		--wait-interval=$(WAIT_INTERVAL) \
+		--max-hangs=3 --max-retries=2 \
+		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP) )
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-debug-acceptance-fail-every-time: debug/$(YOYO_BIN) debug/faux-rogue
 	@echo
 	echo "now ./debug/faux-rogue will hang every time"
-	echo "-100" > $(FAILCOUNT)
-	-( FAILCOUNT=$(FAILCOUNT) ./debug/$(YOYO_BIN) \
+	echo "100" > tmp.$@.failcount
+	-( FAILCOUNT=tmp.$@.failcount \
+		./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--max-hangs=3 --max-retries=2 \
 		--verbose=2 \
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) )
-	@echo
-	rm -fv $(FAILCOUNT)
-	@echo "$@ SUCCESS"
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
 
-lcov: check-debug-unit check-debug-acceptance
+check-build-acceptance-hang-every-time: build/$(YOYO_BIN) build/faux-rogue
+	@echo
+	echo "now ./build/faux-rogue will hang every time"
+	echo "-100" > tmp.$@.failcount
+	-( FAILCOUNT=tmp.$@.failcount \
+		./build/$(YOYO_BIN) \
+		--wait-interval=$(WAIT_INTERVAL) \
+		--max-hangs=3 --max-retries=2 \
+		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP) )
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-debug-acceptance-hang-every-time: debug/$(YOYO_BIN) debug/faux-rogue
+	@echo
+	echo "now ./debug/faux-rogue will hang every time"
+	echo "-100" > tmp.$@.failcount
+	-( FAILCOUNT=tmp.$@.failcount \
+		./debug/$(YOYO_BIN) \
+		--wait-interval=$(WAIT_INTERVAL) \
+		--max-hangs=3 --max-retries=2 \
+		--verbose=2 \
+		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) )
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-build-acceptance: \
+		build--version \
+		build--help \
+		check-build-acceptance-succeed-first-try \
+		check-build-acceptance-fail-one-then-succeed \
+		check-debug-acceptance-succeed-after-long-time \
+		check-build-acceptance-hang-twice-then-succeed \
+		check-build-acceptance-fail-every-time \
+		check-build-acceptance-hang-every-time
+	@echo "SUCCESS! ($@)"
+
+check-debug-acceptance: \
+		debug-version \
+		debug--help \
+		check-debug-acceptance-succeed-first-try \
+		check-debug-acceptance-fail-one-then-succeed \
+		check-debug-acceptance-succeed-after-long-time \
+		check-debug-acceptance-hang-twice-then-succeed \
+		check-debug-acceptance-fail-every-time \
+		check-debug-acceptance-hang-every-time
+	@echo "SUCCESS! ($@)"
+
+coverage.info: check-debug-unit check-debug-acceptance
 	lcov    --checksum \
 		--capture \
 		--base-directory . \
 		--directory . \
 		--output-file coverage.info
 
-html-report: lcov
+html-report: coverage.info
 	mkdir -pv ./coverage_html
 	genhtml coverage.info --output-directory coverage_html
 
@@ -268,13 +365,13 @@ coverage: html-report
 	$(BROWSER) ./coverage_html/src/yoyo.c.gcov.html
 
 check: check-build-unit check-build-acceptance
-	@echo "$@ SUCCESS"
+	@echo "SUCCESS! ($@)"
 
 debug-check: check-debug-unit check-debug-acceptance
-	@echo "$@ SUCCESS"
+	@echo "SUCCESS! ($@)"
 
 check-all: check html-report check-ruby
-	@echo "$@ SUCCESS"
+	@echo "SUCCESS! ($@)"
 
 build/globdemo:
 	mkdir -pv build
@@ -283,14 +380,22 @@ build/globdemo:
 globdemo: build/globdemo
 	./build/globdemo
 
-check-ruby:
+check-ruby-success: ruby/yoyo ruby/fixture
 	@echo "ruby"
-	echo "0" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ruby/yoyo ruby/fixture $(FIXTURE_SLEEP)
+	echo "0" > tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount ruby/yoyo ruby/fixture $(FIXTURE_SLEEP)
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-ruby-fail-once: ruby/yoyo ruby/fixture
 	@echo
-	echo "1" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ruby/yoyo ruby/fixture $(FIXTURE_SLEEP)
-	@echo "$@ SUCCESS"
+	echo "1" > tmp.$@.failcount
+	FAILCOUNT=tmp.$@.failcount ruby/yoyo ruby/fixture $(FIXTURE_SLEEP)
+	rm -fv tmp.$@.failcount
+	@echo "SUCCESS! ($@)"
+
+check-ruby: check-ruby-success check-ruby-fail-once
+	@echo "SUCCESS! ($@)"
 
 tidy:
 	$(LINDENT) -T FILE src/*.c src/*.h tests/*.c

@@ -99,10 +99,10 @@ FIXTURE_SLEEP_LONG ?= 6
 check-ruby:
 	@echo "ruby"
 	echo "0" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./yoyo ./fixture $(FIXTURE_SLEEP)
+	FAILCOUNT=$(FAILCOUNT) ruby/yoyo ruby/fixture $(FIXTURE_SLEEP)
 	@echo
 	echo "1" > $(FAILCOUNT)
-	FAILCOUNT=$(FAILCOUNT) ./yoyo ./fixture $(FIXTURE_SLEEP)
+	FAILCOUNT=$(FAILCOUNT) ruby/yoyo ruby/fixture $(FIXTURE_SLEEP)
 	@echo "$@ SUCCESS"
 
 check: check-$(YOYO_BIN) $(YOYO_BIN) faux-rogue

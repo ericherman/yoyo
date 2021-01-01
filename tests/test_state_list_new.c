@@ -5,8 +5,8 @@
 #include <string.h>
 
 extern int yoyo_verbose;
-extern mem_alloc_func yoyo_calloc;
-extern mem_free_func yoyo_free;
+extern void *(*yoyo_calloc)(size_t nmemb, size_t size);
+extern void (*yoyo_free)(void *ptr);
 
 struct error_injecting_mem_context {
 	unsigned long allocs;

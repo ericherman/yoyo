@@ -47,8 +47,6 @@ typedef struct state_list *(*state_list_get_func) (long pid, void *context);
 typedef void (*state_list_free_func)(struct state_list * l, void *context);
 typedef unsigned int (*sleep_func)(unsigned int seconds, void *context);
 typedef int (*kill_func)(long pid, int sig, void *context);
-typedef void *(*mem_alloc_func)(size_t nmemb, size_t size);
-typedef void (*mem_free_func)(void *ptr);
 
 /* monitor a child process; signal the process if it looks hung */
 void monitor_child_for_hang(long childpid, unsigned max_hangs,

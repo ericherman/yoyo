@@ -78,14 +78,12 @@ FILE *yoyo_stderr = NULL;
 #define Ystderr (yoyo_stderr ? yoyo_stderr : stderr)
 
 /* global pointers to calloc(), free() provided for testing OOM and such */
-mem_alloc_func yoyo_calloc = calloc;
-mem_free_func yoyo_free = free;
+void *(*yoyo_calloc)(size_t nmemb, size_t size) = calloc;
+void (*yoyo_free)(void *ptr) = free;
 
-typedef pid_t(*fork_func) (void);
-fork_func yoyo_fork = fork;
-
-typedef int (*execv_func)(const char *pathname, char *const argv[]);
-execv_func yoyo_execv = execv;
+/* global pointers to fork, execv provided for testing */
+pid_t(*yoyo_fork) (void) = fork;
+int (*yoyo_execv)(const char *pathname, char *const argv[]) = execv;
 
 /*************************************************************************/
 /* functions */

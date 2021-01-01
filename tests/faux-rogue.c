@@ -17,8 +17,9 @@ enum action_type get_action(const char *failpath)
 		FILE *failfile = fopen(failpath, "r+");
 		if (failfile) {
 			if (fscanf(failfile, "%d", &failcount) != 1) {
-				fprintf(stderr, "%s", "failcount not found in failfile\n");
-                        }
+				fprintf(stderr, "%s",
+					"failcount not found in failfile\n");
+			}
 			int remaining = 0;
 			if (failcount > 0) {
 				remaining = failcount - 1;

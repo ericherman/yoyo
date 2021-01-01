@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Makefile for yoyo
+#  a program to launch and re-launch another program if it hangs
+# Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org>
+
 # $@ : target label
 # $< : the first prerequisite after the colon
 # $^ : all of the prerequisite files

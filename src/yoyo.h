@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* yoyo: a program to launch and re-launch another program if it hangs */
+/* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> */
+
 #ifndef YOYO_H
 #define YOYO_H
 

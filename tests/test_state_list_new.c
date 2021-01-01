@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> */
+
 #include "yoyo.h"
 
 #include <stdio.h>

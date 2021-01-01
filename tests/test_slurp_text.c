@@ -11,7 +11,7 @@ int main(void)
 	int fd = mkstemps(fname, 6);
 	FILE *f = fdopen(fd, "w");
 	const char *expect = "foo!\n";
-	fprintf(f, expect);
+	fprintf(f, "%s", expect);
 	fclose(f);
 
 	unsigned errors = 0;

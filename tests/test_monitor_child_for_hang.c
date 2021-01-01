@@ -1,5 +1,12 @@
 #include "yoyo.h"
 
+#include <sys/types.h>
+
+extern int (*yoyo_kill)(pid_t pid, int sig);
+extern unsigned int (*yoyo_sleep)(unsigned int seconds);
+extern struct state_list *(*get_states) (long pid, const char *fakeroot);
+extern void (*free_states)(struct state_list * l);
+
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
@@ -21,7 +28,9 @@ struct monitor_child_context {
 	unsigned sig_kill_count_to_set_exited;
 };
 
-int check_for_proc_end(struct monitor_child_context *ctx)
+struct monitor_child_context *ctx = NULL;
+
+int check_for_proc_end(void)
 {
 	if (ctx->sig_kill_count_to_set_exited &&
 	    ctx->sig_kill_count_to_set_exited <= ctx->sig_kill_count) {
@@ -44,9 +53,9 @@ int check_for_proc_end(struct monitor_child_context *ctx)
 	return 0;
 }
 
-struct state_list *faux_get_states(long pid, void *context)
+struct state_list *faux_get_states(long pid, const char *fakeroot)
 {
-	struct monitor_child_context *ctx = context;
+	(void)fakeroot;
 
 	++ctx->get_states_count;
 
@@ -56,7 +65,7 @@ struct state_list *faux_get_states(long pid, void *context)
 			__FILE__, __func__, __LINE__, ctx->childpid, pid);
 	}
 
-	check_for_proc_end(ctx);
+	check_for_proc_end();
 
 	size_t len = ctx->has_exited ? 0 : ctx->template_sl->len;
 	struct state_list *template = ctx->template_sl;
@@ -74,26 +83,22 @@ struct state_list *faux_get_states(long pid, void *context)
 	return new_list;
 }
 
-void faux_free_states(struct state_list *l, void *context)
+void faux_free_states(struct state_list *l)
 {
-	struct monitor_child_context *ctx = context;
-
 	if (l) {
 		++ctx->free_states_count;
 		state_list_free(l);
 	}
 }
 
-int faux_kill(long pid, int sig, void *context)
+int faux_kill(pid_t pid, int sig)
 {
-	struct monitor_child_context *ctx = context;
-
 	int err = 0;
 
 	if (pid != ctx->childpid) {
 		++err;
 		fprintf(stderr, "%s:%s:%d WHAT? Expected pid %ld but was %ld\n",
-			__FILE__, __func__, __LINE__, ctx->childpid, pid);
+			__FILE__, __func__, __LINE__, ctx->childpid, (long)pid);
 	}
 
 	if (sig == 0) {
@@ -113,10 +118,8 @@ int faux_kill(long pid, int sig, void *context)
 	return err ? -1 : 0;
 }
 
-unsigned int faux_sleep(unsigned int seconds, void *context)
+unsigned int faux_sleep(unsigned int seconds)
 {
-	struct monitor_child_context *ctx = context;
-
 	const unsigned threshold = 1000;
 	if (ctx->sleep_count++ > threshold) {
 		fprintf(stderr, "%s:%s:%d sleep(%u) threshold %d exceeded\n",
@@ -124,7 +127,7 @@ unsigned int faux_sleep(unsigned int seconds, void *context)
 		exit(EXIT_FAILURE);
 	}
 
-	if (check_for_proc_end(ctx)) {
+	if (check_for_proc_end()) {
 		return 1;
 	}
 
@@ -162,41 +165,46 @@ unsigned test_monitor_and_exit_after_4(void)
 
 	unsigned failures = 0;
 
-	struct monitor_child_context ctx;
-	memset(&ctx, 0x00, sizeof(struct monitor_child_context));
+	struct monitor_child_context context;
+	memset(&context, 0x00, sizeof(struct monitor_child_context));
+	ctx = &context;
 
-	ctx.failures = &failures;
-	ctx.childpid = childpid;
-	ctx.template_sl = &template;
-	ctx.get_states_exit_at = 4;
-	ctx.get_states_sleeping_after = 2;
+	ctx->failures = &failures;
+	ctx->childpid = childpid;
+	ctx->template_sl = &template;
+	ctx->get_states_exit_at = 4;
+	ctx->get_states_sleeping_after = 2;
 
 	unsigned max_hangs = 3;
 	unsigned hang_check_interval = 60;
+	const char *fakeroot = NULL;
 
+	yoyo_kill = faux_kill;
+	yoyo_sleep = faux_sleep;
+	get_states = faux_get_states;
+	free_states = faux_free_states;
 	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
-			       faux_get_states, faux_free_states, faux_sleep,
-			       faux_kill, &ctx);
+			       fakeroot);
 
-	if (ctx.sig_term_count) {
+	if (ctx->sig_term_count) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "ctx.sig_term_count", 0,
-			ctx.sig_term_count);
+			__FILE__, __func__, __LINE__, "ctx->sig_term_count", 0,
+			ctx->sig_term_count);
 		++failures;
 	}
 
-	if (ctx.sig_kill_count) {
+	if (ctx->sig_kill_count) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "ctx.sig_kill_count", 0,
-			ctx.sig_kill_count);
+			__FILE__, __func__, __LINE__, "ctx->sig_kill_count", 0,
+			ctx->sig_kill_count);
 		++failures;
 	}
 
-	if (ctx.free_states_count != ctx.get_states_count) {
+	if (ctx->free_states_count != ctx->get_states_count) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
 			__FILE__, __func__, __LINE__,
-			"ctx.free_states_count != ctx.get_states_count",
-			ctx.get_states_count, ctx.free_states_count);
+			"ctx->free_states_count != ctx->get_states_count",
+			ctx->get_states_count, ctx->free_states_count);
 		++failures;
 	}
 
@@ -215,41 +223,45 @@ unsigned test_monitor_requires_sigkill(void)
 
 	unsigned failures = 0;
 
-	struct monitor_child_context ctx;
-	memset(&ctx, 0x00, sizeof(struct monitor_child_context));
+	struct monitor_child_context context;
+	memset(&context, 0x00, sizeof(struct monitor_child_context));
+	ctx = &context;
 
-	ctx.failures = &failures;
-	ctx.childpid = childpid;
-	ctx.template_sl = &template;
-	ctx.get_states_sleeping_after = 2;
-	ctx.sig_kill_count_to_set_exited = 1;
+	ctx->failures = &failures;
+	ctx->childpid = childpid;
+	ctx->template_sl = &template;
+	ctx->get_states_sleeping_after = 2;
+	ctx->sig_kill_count_to_set_exited = 1;
 
 	unsigned max_hangs = 3;
 	unsigned hang_check_interval = 60;
-
+	const char *fakeroot = NULL;
+	yoyo_kill = faux_kill;
+	yoyo_sleep = faux_sleep;
+	get_states = faux_get_states;
+	free_states = faux_free_states;
 	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
-			       faux_get_states, faux_free_states, faux_sleep,
-			       faux_kill, &ctx);
+			       fakeroot);
 
-	if (ctx.sig_term_count < max_hangs) {
+	if (ctx->sig_term_count < max_hangs) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "ctx.sig_term_count",
-			max_hangs, ctx.sig_term_count);
+			__FILE__, __func__, __LINE__, "ctx->sig_term_count",
+			max_hangs, ctx->sig_term_count);
 		++failures;
 	}
 
-	if (!ctx.sig_kill_count) {
+	if (!ctx->sig_kill_count) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "ctx.sig_kill_count", 1,
-			ctx.sig_kill_count);
+			__FILE__, __func__, __LINE__, "ctx->sig_kill_count", 1,
+			ctx->sig_kill_count);
 		++failures;
 	}
 
-	if (ctx.free_states_count != ctx.get_states_count) {
+	if (ctx->free_states_count != ctx->get_states_count) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
 			__FILE__, __func__, __LINE__,
-			"ctx.free_states_count != ctx.get_states_count",
-			ctx.get_states_count, ctx.free_states_count);
+			"ctx->free_states_count != ctx->get_states_count",
+			ctx->get_states_count, ctx->free_states_count);
 		++failures;
 	}
 

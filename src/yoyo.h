@@ -43,27 +43,19 @@ struct exit_reason {
 
 /* function prototypes */
 
-typedef struct state_list *(*state_list_get_func) (long pid, void *context);
-typedef void (*state_list_free_func)(struct state_list * l, void *context);
-typedef unsigned int (*sleep_func)(unsigned int seconds, void *context);
-typedef int (*kill_func)(long pid, int sig, void *context);
-
 /* monitor a child process; signal the process if it looks hung */
 void monitor_child_for_hang(long childpid, unsigned max_hangs,
 			    unsigned hang_check_interval,
-			    state_list_get_func get_states,
-			    state_list_free_func free_states,
-			    sleep_func sleep_seconds, kill_func kill_child,
-			    void *context);
+			    const char *fake_root);
 
 /* look for evidence of a hung process */
 int process_looks_hung(struct state_list **next, struct state_list *previous,
 		       struct state_list *current);
 
 /* given a pid, create state_list based on the '/proc' filesystem
- * if the context object is non-null, it will be cast to a const char *
- * and prepended before '/proc' */
-struct state_list *get_states_proc(long pid, void *context);
+ * if the fakeroot parameter is non-null, it will be prepended before
+ * '/proc' */
+struct state_list *get_states_proc(long pid, const char *fakeroot);
 
 /* null-safe; frees the states as well as the state_list struct */
 void free_states_wrap(struct state_list *l, void *context);

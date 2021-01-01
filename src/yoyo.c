@@ -30,25 +30,6 @@
 #define Errorf(format, ...) \
 	errorf(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
 
-int print_help(FILE *out, const char *name);
-int kill_pid(long pid, int sig, void *context);
-unsigned int unistd_sleep(unsigned int seconds, void *context);
-
-/* Modern versions of GCC whine about casting-away a const qualifier */
-#if __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-#endif
-/* Be very clear that we are discarding const knowningly. */
-static void *discard_const(const void *v)
-{
-	return (void *)v;
-}
-
-#if __GNUC__
-#pragma GCC diagnostic pop
-#endif
-
 /*************************************************************************/
 /* globals */
 /*************************************************************************/
@@ -81,12 +62,49 @@ FILE *yoyo_stderr = NULL;
 void *(*yoyo_calloc)(size_t nmemb, size_t size) = calloc;
 void (*yoyo_free)(void *ptr) = free;
 
-/* global pointers to fork, execv provided for testing */
+/* global pointers to fork, execv, kill, sleep provided for testing */
 pid_t(*yoyo_fork) (void) = fork;
 int (*yoyo_execv)(const char *pathname, char *const argv[]) = execv;
+int (*yoyo_kill)(pid_t pid, int sig) = kill;
+unsigned int (*yoyo_sleep)(unsigned int seconds) = sleep;
+
+/* global pointers to internal functions */
+struct state_list *(*get_states) (long pid, const char *fakeroot) =
+    get_states_proc;
+void (*free_states)(struct state_list * l) = state_list_free;
 
 /*************************************************************************/
 /* functions */
+
+int print_help(FILE *out, const char *name)
+{
+	fprintf(out, "The %s runs a program, and monitors /proc\n", YOYO_NAME);
+	fprintf(out, "Based on counters in /proc if the process looks hung,\n");
+	fprintf(out, "%s will kill and restart it.\n\n", YOYO_NAME);
+	fprintf(out, "Usage: %s [OPTION] program program-args...\n", name);
+	fprintf(out, "  -V, --version                  ");
+	fprintf(out, "print version (%s) and exit\n", YOYO_VERSION);
+	fprintf(out, "  -h, --help                     ");
+	fprintf(out, "print this message and exit\n");
+	fprintf(out, "  -v, --verbose                  ");
+	fprintf(out, "output addition error information\n");
+	fprintf(out, "  -w, --wait-interval[=seconds]  ");
+	fprintf(out, "seconds to sleep between checks\n");
+	fprintf(out, "                                 ");
+	fprintf(out, "    if < 1, defaults is %d\n",
+		DEFAULT_HANG_CHECK_INTERVAL);
+	fprintf(out, "  -m, --max-hangs[=num]          ");
+	fprintf(out, "number of hang checks to tolerate\n");
+	fprintf(out, "                                 ");
+	fprintf(out, "    if < 1, defaults is %d\n", DEFAULT_MAX_HANGS);
+	fprintf(out, "  -r, --max-retries[=num]          ");
+	fprintf(out, "max iterations to retry after hang\n");
+	fprintf(out, "                                 ");
+	fprintf(out, "    if < 1, defaults is %d\n", DEFAULT_MAX_RETRIES);
+	fprintf(out, "  -f, --fakeroot[=path]          ");
+	fprintf(out, "path to look for /proc files\n");
+	return 0;
+}
 
 int yoyo_main(int argc, char **argv)
 {
@@ -153,17 +171,8 @@ int yoyo_main(int argc, char **argv)
 				(long)global_childpid);
 		}
 
-		state_list_get_func get_states = get_states_proc;
-		state_list_free_func free_states = free_states_wrap;
-		sleep_func sleep_seconds = unistd_sleep;
-		kill_func kill_child = kill_pid;
-		// context is used by get_states_proc
-		void *context = discard_const(fakeroot);
-
 		monitor_child_for_hang(global_childpid, max_hangs,
-				       hang_check_interval, get_states,
-				       free_states, sleep_seconds, kill_child,
-				       context);
+				       hang_check_interval, fakeroot);
 
 		if (reason.exit_code != 0) {
 			if (yoyo_verbose >= 0) {
@@ -318,11 +327,10 @@ int ignore_no_such_file(const char *epath, int eerrno)
 	return 0;
 }
 
-struct state_list *get_states_proc(long pid, void *context)
+struct state_list *get_states_proc(long pid, const char *fakeroot)
 {
 	errno = 0;
 
-	const char *fakeroot = context ? context : "";
 	char pattern[FILENAME_MAX + 3];
 	pid_to_stat_pattern(pattern, fakeroot, pid);
 
@@ -368,24 +376,6 @@ struct state_list *get_states_proc(long pid, void *context)
 	return sl;
 }
 
-void free_states_wrap(struct state_list *l, void *context)
-{
-	(void)context;
-	state_list_free(l);
-}
-
-int kill_pid(long pid, int sig, void *context)
-{
-	(void)context;
-	return kill(pid, sig);
-}
-
-unsigned int unistd_sleep(unsigned int seconds, void *context)
-{
-	(void)context;
-	return sleep(seconds);
-}
-
 void exit_reason_child_trap(int sig)
 {
 	if (yoyo_verbose > 0) {
@@ -415,26 +405,22 @@ void exit_reason_child_trap(int sig)
 }
 
 void monitor_child_for_hang(long childpid, unsigned max_hangs,
-			    unsigned hang_check_interval,
-			    state_list_get_func get_states,
-			    state_list_free_func free_states,
-			    sleep_func sleep_seconds, kill_func kill_child,
-			    void *context)
+			    unsigned hang_check_interval, const char *fakeroot)
 {
 	unsigned int hang_count = 0;
 	struct state_list *thread_states = NULL;
 	const int sig_exists = 0;
-	while (kill_child(childpid, sig_exists, context) == 0) {
+	while (yoyo_kill(childpid, sig_exists) == 0) {
 		unsigned int seconds = hang_check_interval;
-		unsigned int remain = sleep_seconds(seconds, context);
+		unsigned int remain = yoyo_sleep(seconds);
 		(void)remain;	// ignore, maybe interrupted by a handler?
 		struct state_list *previous = thread_states;
-		struct state_list *current = get_states(childpid, context);
+		struct state_list *current = get_states(childpid, fakeroot);
 		if (process_looks_hung(&thread_states, previous, current)) {
 			++hang_count;
 			int sig = hang_count <= max_hangs ? SIGTERM : SIGKILL;
 			errno = 0;
-			int err = kill_child(childpid, sig, context);
+			int err = yoyo_kill(childpid, sig);
 			/* ESRCH: No such process */
 			if ((yoyo_verbose > 0) || (err && (errno != ESRCH))) {
 				const char *sigstr =
@@ -442,7 +428,7 @@ void monitor_child_for_hang(long childpid, unsigned max_hangs,
 				Errorf("kill(childpid, %d) returned %d", sigstr,
 				       err);
 			}
-			sleep_seconds(1, context);
+			yoyo_sleep(0);	// yeild
 		} else {
 			hang_count = 0;
 			if (yoyo_verbose > 0) {
@@ -450,12 +436,12 @@ void monitor_child_for_hang(long childpid, unsigned max_hangs,
 					" doing something worthwhile\n");
 			}
 		}
-		free_states(previous, context);
+		free_states(previous);
 		if (thread_states != current) {
-			free_states(current, context);
+			free_states(current);
 		}
 	}
-	free_states(thread_states, context);
+	free_states(thread_states);
 }
 
 int appendf(char *buf, size_t bufsize, const char *format, ...)
@@ -565,42 +551,6 @@ void exit_reason_to_str(struct exit_reason *reason, char *buf, size_t bufsize)
 	if (reason->continued) {
 		appendf(buf, bufsize, " was resumed by SIGCONT");
 	}
-}
-
-int print_help(FILE *out, const char *name)
-{
-	fprintf(out, "The %s runs a program, and monitors /proc\n"
-		"Based on counters in /proc if the process looks hung,\n"
-		"%s will kill and restart it.\n\n", YOYO_NAME, YOYO_NAME);
-	fprintf(out, "Usage: %s [OPTION] program program-args...\n", name);
-	fprintf(out,
-		"  -V, --version                  "
-		"print version (%s) and exit\n", YOYO_VERSION);
-	fprintf(out,
-		"  -h, --help                     "
-		"print this message and exit\n");
-	fprintf(out,
-		"  -v, --verbose                  "
-		"output addition error information\n");
-	fprintf(out,
-		"  -w, --wait-interval[=seconds]  "
-		"seconds to sleep between checks\n"
-		"                                 "
-		"    if < 1, defaults is %d\n", DEFAULT_HANG_CHECK_INTERVAL);
-	fprintf(out,
-		"  -m, --max-hangs[=num]          "
-		"number of hang checks to tolerate\n"
-		"                                 "
-		"    if < 1, defaults is %d\n", DEFAULT_MAX_HANGS);
-	fprintf(out,
-		"  -r, --max-retries[=num]          "
-		"max iterations to retry after hang\n"
-		"                                 "
-		"    if < 1, defaults is %d\n", DEFAULT_MAX_RETRIES);
-	fprintf(out,
-		"  -f, --fakeroot[=path]          "
-		"path to look for /proc files\n");
-	return 0;
 }
 
 /* getopt/getoplong is horrrible */

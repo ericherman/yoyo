@@ -32,7 +32,7 @@
 #define DEFAULT_MAX_RETRIES 5
 
 #define Errorf(format, ...) \
-	errorf(__FILE__, __LINE__, format __VA_OPT__(,) __VA_ARGS__)
+	errorf(__FILE__, __LINE__, __func__, format __VA_OPT__(,) __VA_ARGS__)
 
 /*************************************************************************/
 /* globals */
@@ -468,7 +468,8 @@ int appendf(char *buf, size_t bufsize, const char *format, ...)
 	return printed;
 }
 
-void errorf(const char *file, int line, const char *format, ...)
+void errorf(const char *file, int line, const char *func, const char *format,
+	    ...)
 {
 	int _errorf_save = errno;
 	errno = 0;
@@ -476,7 +477,7 @@ void errorf(const char *file, int line, const char *format, ...)
 		return;
 	}
 	fflush(Ystdout);
-	fprintf(Ystderr, "%s:%d ", file, line);
+	fprintf(Ystderr, "%s:%d (%s) ", file, line, func);
 
 	va_list args;
 

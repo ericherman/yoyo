@@ -75,7 +75,8 @@ char *slurp_text(char *buf, size_t buflen, const char *path);
 int appendf(char *buf, size_t bufsize, const char *format, ...);
 
 /* print an error message, include the errno information if non-zero */
-void errorf(const char *file, int line, const char *format, ...);
+void errorf(const char *file, int line, const char *func, const char *format,
+	    ...);
 
 /* trap child exits, and capture the exit_reason information */
 void exit_reason_child_trap(int sig);

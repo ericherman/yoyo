@@ -56,14 +56,14 @@ build/test_yoyo_parse_command_line: build/yoyo.o \
 		tests/test_yoyo_parse_command_line.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
-check_build_yoyo_parse_command_line: build/test_yoyo_parse_command_line
+check_yoyo_parse_command_line: build/test_yoyo_parse_command_line
 	./build/test_yoyo_parse_command_line
 
 debug/test_yoyo_parse_command_line: debug/yoyo.o \
 		tests/test_yoyo_parse_command_line.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-check_debug_yoyo_parse_command_line: debug/test_yoyo_parse_command_line
+debug_check_yoyo_parse_command_line: debug/test_yoyo_parse_command_line
 	$(VALGRIND) ./debug/test_yoyo_parse_command_line >$@.out 2>&1
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
@@ -72,14 +72,14 @@ build/test_process_looks_hung: build/yoyo.o \
 		tests/test_process_looks_hung.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
-check_build_process_looks_hung: build/test_process_looks_hung
+check_process_looks_hung: build/test_process_looks_hung
 	./build/test_process_looks_hung
 
 debug/test_process_looks_hung: debug/yoyo.o \
 		tests/test_process_looks_hung.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-check_debug_process_looks_hung: debug/test_process_looks_hung
+debug_check_process_looks_hung: debug/test_process_looks_hung
 	$(VALGRIND) ./debug/test_process_looks_hung >$@.out 2>&1
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
@@ -88,14 +88,14 @@ build/test_monitor_child_for_hang: build/yoyo.o \
 		tests/test_monitor_child_for_hang.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
-check_build_monitor_child_for_hang: build/test_monitor_child_for_hang
+check_monitor_child_for_hang: build/test_monitor_child_for_hang
 	./build/test_monitor_child_for_hang
 
 debug/test_monitor_child_for_hang: debug/yoyo.o \
 		tests/test_monitor_child_for_hang.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-check_debug_monitor_child_for_hang: debug/test_monitor_child_for_hang
+debug_check_monitor_child_for_hang: debug/test_monitor_child_for_hang
 	$(VALGRIND) ./debug/test_monitor_child_for_hang >$@.out 2>&1
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
@@ -104,14 +104,14 @@ build/test_slurp_text: build/yoyo.o \
 		tests/test_slurp_text.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
-check_build_slurp_text: build/test_slurp_text
+check_slurp_text: build/test_slurp_text
 	./build/test_slurp_text
 
 debug/test_slurp_text: debug/yoyo.o \
 		tests/test_slurp_text.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-check_debug_slurp_text: debug/test_slurp_text
+debug_check_slurp_text: debug/test_slurp_text
 	$(VALGRIND) ./debug/test_slurp_text >$@.out 2>&1
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
@@ -120,14 +120,14 @@ build/test_state_list_new: build/yoyo.o \
 		tests/test_state_list_new.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
-check_build_state_list_new: build/test_state_list_new
+check_state_list_new: build/test_state_list_new
 	./build/test_state_list_new
 
 debug/test_state_list_new: debug/yoyo.o \
 		tests/test_state_list_new.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-check_debug_state_list_new: debug/test_state_list_new
+debug_check_state_list_new: debug/test_state_list_new
 	$(VALGRIND) ./debug/test_state_list_new >$@.out 2>&1
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
@@ -136,14 +136,14 @@ build/test_yoyo_main: build/yoyo.o \
 		tests/test_yoyo_main.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
-check_build_yoyo_main: build/test_yoyo_main
+check_yoyo_main: build/test_yoyo_main
 	./build/test_yoyo_main
 
 debug/test_yoyo_main: debug/yoyo.o \
 		tests/test_yoyo_main.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-check_debug_yoyo_main: debug/test_yoyo_main
+debug_check_yoyo_main: debug/test_yoyo_main
 	$(VALGRIND) ./debug/test_yoyo_main >$@.out 2>&1
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
@@ -152,34 +152,34 @@ build/test_exit_reason: build/yoyo.o \
 		tests/test_exit_reason.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
-check_build_exit_reason: build/test_exit_reason
+check_exit_reason: build/test_exit_reason
 	./build/test_exit_reason
 
 debug/test_exit_reason: debug/yoyo.o \
 		tests/test_exit_reason.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-check_debug_exit_reason: debug/test_exit_reason
+debug_check_exit_reason: debug/test_exit_reason
 	$(VALGRIND) ./debug/test_exit_reason >$@.out 2>&1
 	grep -vq 'definitely lost' $@.out
 	rm -fv $@.out
 
-check-build-unit: check_build_yoyo_parse_command_line \
-		check_build_exit_reason \
-		check_build_yoyo_main \
-		check_build_slurp_text \
-		check_build_state_list_new \
-		check_build_process_looks_hung \
-		check_build_monitor_child_for_hang
+check-unit: check_yoyo_parse_command_line \
+		check_exit_reason \
+		check_yoyo_main \
+		check_slurp_text \
+		check_state_list_new \
+		check_process_looks_hung \
+		check_monitor_child_for_hang
 	@echo "SUCCESS! ($@)"
 
-check-debug-unit: check_debug_yoyo_parse_command_line \
-		check_debug_exit_reason \
-		check_debug_yoyo_main \
-		check_debug_slurp_text \
-		check_debug_state_list_new \
-		check_debug_process_looks_hung \
-		check_debug_monitor_child_for_hang
+debug-check-unit: debug_check_yoyo_parse_command_line \
+		debug_check_exit_reason \
+		debug_check_yoyo_main \
+		debug_check_slurp_text \
+		debug_check_state_list_new \
+		debug_check_process_looks_hung \
+		debug_check_monitor_child_for_hang
 	@echo "SUCCESS! ($@)"
 
 build/faux-rogue: tests/faux-rogue.c
@@ -189,14 +189,14 @@ debug/faux-rogue: tests/faux-rogue.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
 
-build--version: ./build/$(YOYO_BIN)
+$(YOYO_BIN)-version: ./build/$(YOYO_BIN)
 	@echo
 	./build/$(YOYO_BIN) --version >$@.out 2>&1
 	grep '0.0.1' $@.out
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
-debug--version: ./debug/$(YOYO_BIN)
+debug-$(YOYO_BIN)-version: ./debug/$(YOYO_BIN)
 	@echo
 	$(VALGRIND) ./debug/$(YOYO_BIN) --version >$@.out 2>&1
 	grep '0.0.1' $@.out
@@ -204,7 +204,7 @@ debug--version: ./debug/$(YOYO_BIN)
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
-build--help:./build/$(YOYO_BIN)
+$(YOYO_BIN)-help:./build/$(YOYO_BIN)
 	@echo
 	./build/$(YOYO_BIN) --help >$@.out 2>&1
 	grep 'wait-interval' $@.out
@@ -214,7 +214,7 @@ build--help:./build/$(YOYO_BIN)
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
-debug--help: ./debug/$(YOYO_BIN)
+debug-$(YOYO_BIN)-help: ./debug/$(YOYO_BIN)
 	@echo
 	$(VALGRIND) ./debug/$(YOYO_BIN) --help >$@.out 2>&1
 	grep 'wait-interval' $@.out
@@ -225,7 +225,7 @@ debug--help: ./debug/$(YOYO_BIN)
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
-check-build-acceptance-succeed-first-try: build/$(YOYO_BIN) build/faux-rogue
+check-acceptance-succeed-first-try: build/$(YOYO_BIN) build/faux-rogue
 	@echo
 	@echo "succeed first try"
 	echo "0" > tmp.$@.failcount
@@ -238,7 +238,7 @@ check-build-acceptance-succeed-first-try: build/$(YOYO_BIN) build/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-check-debug-acceptance-succeed-first-try: debug/$(YOYO_BIN) debug/faux-rogue
+debug-check-acceptance-succeed-first-try: debug/$(YOYO_BIN) debug/faux-rogue
 	@echo
 	@echo "succeed first try"
 	echo "0" > tmp.$@.failcount
@@ -253,7 +253,7 @@ check-debug-acceptance-succeed-first-try: debug/$(YOYO_BIN) debug/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-check-build-acceptance-fail-one-then-succeed: build/$(YOYO_BIN) build/faux-rogue
+check-acceptance-fail-one-then-succeed: build/$(YOYO_BIN) build/faux-rogue
 	@echo
 	@echo "fail once, then succeed"
 	echo "1" > tmp.$@.failcount
@@ -268,7 +268,7 @@ check-build-acceptance-fail-one-then-succeed: build/$(YOYO_BIN) build/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-check-debug-acceptance-fail-one-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
+debug-check-acceptance-fail-one-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
 	@echo
 	@echo "fail once, then succeed"
 	echo "1" > tmp.$@.failcount
@@ -285,7 +285,7 @@ check-debug-acceptance-fail-one-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-check-build-acceptance-succeed-after-long-time: build/$(YOYO_BIN) build/faux-rogue
+check-acceptance-succeed-after-long-time: build/$(YOYO_BIN) build/faux-rogue
 	@echo
 	@echo "succeed after a long time"
 	echo "0" > tmp.$@.failcount
@@ -298,7 +298,7 @@ check-build-acceptance-succeed-after-long-time: build/$(YOYO_BIN) build/faux-rog
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-check-debug-acceptance-succeed-after-long-time: debug/$(YOYO_BIN) debug/faux-rogue
+debug-check-acceptance-succeed-after-long-time: debug/$(YOYO_BIN) debug/faux-rogue
 	@echo
 	@echo "succeed after a long time"
 	echo "0" > tmp.$@.failcount
@@ -313,7 +313,7 @@ check-debug-acceptance-succeed-after-long-time: debug/$(YOYO_BIN) debug/faux-rog
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-check-build-acceptance-hang-twice-then-succeed: build/$(YOYO_BIN) build/faux-rogue
+check-acceptance-hang-twice-then-succeed: build/$(YOYO_BIN) build/faux-rogue
 	echo "./build/faux-rogue will hang twice"
 	echo "-2" > tmp.$@.failcount
 	FAILCOUNT=tmp.$@.failcount \
@@ -326,7 +326,7 @@ check-build-acceptance-hang-twice-then-succeed: build/$(YOYO_BIN) build/faux-rog
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-check-debug-acceptance-hang-twice-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
+debug-check-acceptance-hang-twice-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
 	echo "./debug/faux-rogue will hang twice"
 	echo "-2" > tmp.$@.failcount
 	FAILCOUNT=tmp.$@.failcount \
@@ -341,7 +341,7 @@ check-debug-acceptance-hang-twice-then-succeed: debug/$(YOYO_BIN) debug/faux-rog
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-check-build-acceptance-fail-every-time: build/$(YOYO_BIN) build/faux-rogue
+check-acceptance-fail-every-time: build/$(YOYO_BIN) build/faux-rogue
 	@echo
 	echo "now ./build/faux-rogue will hang every time"
 	echo "100" > tmp.$@.failcount
@@ -355,7 +355,7 @@ check-build-acceptance-fail-every-time: build/$(YOYO_BIN) build/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-check-debug-acceptance-fail-every-time: debug/$(YOYO_BIN) debug/faux-rogue
+debug-check-acceptance-fail-every-time: debug/$(YOYO_BIN) debug/faux-rogue
 	@echo
 	echo "now ./debug/faux-rogue will hang every time"
 	echo "100" > tmp.$@.failcount
@@ -371,7 +371,7 @@ check-debug-acceptance-fail-every-time: debug/$(YOYO_BIN) debug/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-check-build-acceptance-hang-every-time: build/$(YOYO_BIN) build/faux-rogue
+check-acceptance-hang-every-time: build/$(YOYO_BIN) build/faux-rogue
 	@echo
 	echo "now ./build/faux-rogue will hang every time"
 	echo "-100" > tmp.$@.failcount
@@ -385,7 +385,7 @@ check-build-acceptance-hang-every-time: build/$(YOYO_BIN) build/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-check-debug-acceptance-hang-every-time: debug/$(YOYO_BIN) debug/faux-rogue
+debug-check-acceptance-hang-every-time: debug/$(YOYO_BIN) debug/faux-rogue
 	@echo
 	echo "now ./debug/faux-rogue will hang every time"
 	echo "-100" > tmp.$@.failcount
@@ -401,29 +401,29 @@ check-debug-acceptance-hang-every-time: debug/$(YOYO_BIN) debug/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-check-build-acceptance: \
-		build--version \
-		build--help \
-		check-build-acceptance-succeed-first-try \
-		check-build-acceptance-fail-one-then-succeed \
-		check-build-acceptance-succeed-after-long-time \
-		check-build-acceptance-hang-twice-then-succeed \
-		check-build-acceptance-fail-every-time \
-		check-build-acceptance-hang-every-time
+check-acceptance: \
+		$(YOYO_BIN)-version \
+		$(YOYO_BIN)-help \
+		check-acceptance-succeed-first-try \
+		check-acceptance-fail-one-then-succeed \
+		check-acceptance-succeed-after-long-time \
+		check-acceptance-hang-twice-then-succeed \
+		check-acceptance-fail-every-time \
+		check-acceptance-hang-every-time
 	@echo "SUCCESS! ($@)"
 
-check-debug-acceptance: \
-		debug--version \
-		debug--help \
-		check-debug-acceptance-succeed-first-try \
-		check-debug-acceptance-fail-one-then-succeed \
-		check-debug-acceptance-succeed-after-long-time \
-		check-debug-acceptance-hang-twice-then-succeed \
-		check-debug-acceptance-fail-every-time \
-		check-debug-acceptance-hang-every-time
+debug-check-acceptance: \
+		debug-$(YOYO_BIN)-version \
+		debug-$(YOYO_BIN)-help \
+		debug-check-acceptance-succeed-first-try \
+		debug-check-acceptance-fail-one-then-succeed \
+		debug-check-acceptance-succeed-after-long-time \
+		debug-check-acceptance-hang-twice-then-succeed \
+		debug-check-acceptance-fail-every-time \
+		debug-check-acceptance-hang-every-time
 	@echo "SUCCESS! ($@)"
 
-coverage.info: check-debug-unit check-debug-acceptance
+coverage.info: debug-check-unit debug-check-acceptance
 	lcov    --checksum \
 		--capture \
 		--base-directory . \
@@ -437,13 +437,13 @@ html-report: coverage.info
 coverage: html-report
 	$(BROWSER) ./coverage_html/src/yoyo.c.gcov.html
 
-check: check-build-unit check-build-acceptance
+check: check-unit
 	@echo "SUCCESS! ($@)"
 
-debug-check: check-debug-unit check-debug-acceptance
+debug-check: debug-check-unit
 	@echo "SUCCESS! ($@)"
 
-check-all: check html-report check-ruby
+check-all: check check-acceptance html-report
 	@echo "SUCCESS! ($@)"
 
 build/globdemo:

@@ -14,7 +14,7 @@ YOYO_BIN=yoyo
 
 FIXTURE_SLEEP ?= 1
 WAIT_INTERVAL ?= 3
-FIXTURE_SLEEP_LONG ?= 5
+FIXTURE_SLEEP_LONG ?= 4
 
 COMMON_CFLAGS += -g -Wall -Wextra -pedantic -Werror -I./src $(CFLAGS)
 

@@ -4,7 +4,6 @@
 #include "yoyo.h"
 
 #include <sys/types.h>
-#include <sys/param.h>
 
 extern int (*yoyo_kill)(pid_t pid, int sig);
 extern unsigned int (*yoyo_sleep)(unsigned int seconds);
@@ -58,6 +57,11 @@ int check_for_proc_end(void)
 	return 0;
 }
 
+static size_t _zmin(size_t a, size_t b)
+{
+	return a < b ? a : b;
+}
+
 struct state_list *faux_get_states(long pid, const char *fakeroot)
 {
 	(void)fakeroot;
@@ -73,7 +77,7 @@ struct state_list *faux_get_states(long pid, const char *fakeroot)
 	check_for_proc_end();
 
 	size_t len = ctx->has_exited ? 0 : ctx->templates->len;
-	size_t idx = MIN(ctx->get_states_count, ctx->template_len) - 1;
+	size_t idx = _zmin(ctx->get_states_count, ctx->template_len) - 1;
 	struct state_list *template = ctx->templates + idx;
 
 	struct state_list *new_list = state_list_new(len);

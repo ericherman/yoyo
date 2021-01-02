@@ -28,6 +28,8 @@ DEBUG_CFLAGS += -DDEBUG -O0 $(COMMON_CFLAGS) \
 
 SHELL=/bin/bash
 
+VALGRIND=$(shell which valgrind)
+
 # extracted from https://github.com/torvalds/linux/blob/master/scripts/Lindent
 LINDENT=indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1 -il0
 # see also: https://www.kernel.org/doc/Documentation/process/coding-style.rst
@@ -62,7 +64,9 @@ debug/test_yoyo_parse_command_line: debug/yoyo.o \
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
 check_debug_yoyo_parse_command_line: debug/test_yoyo_parse_command_line
-	./debug/test_yoyo_parse_command_line
+	$(VALGRIND) ./debug/test_yoyo_parse_command_line >$@.out 2>&1
+	grep -vq 'definitely lost' $@.out
+	rm -f $@.out
 
 build/test_process_looks_hung: build/yoyo.o \
 		tests/test_process_looks_hung.c
@@ -76,7 +80,9 @@ debug/test_process_looks_hung: debug/yoyo.o \
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
 check_debug_process_looks_hung: debug/test_process_looks_hung
-	./debug/test_process_looks_hung
+	$(VALGRIND) ./debug/test_process_looks_hung >$@.out 2>&1
+	grep -vq 'definitely lost' $@.out
+	rm -f $@.out
 
 build/test_monitor_child_for_hang: build/yoyo.o \
 		tests/test_monitor_child_for_hang.c
@@ -90,7 +96,9 @@ debug/test_monitor_child_for_hang: debug/yoyo.o \
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
 check_debug_monitor_child_for_hang: debug/test_monitor_child_for_hang
-	./debug/test_monitor_child_for_hang
+	$(VALGRIND) ./debug/test_monitor_child_for_hang >$@.out 2>&1
+	grep -vq 'definitely lost' $@.out
+	rm -f $@.out
 
 build/test_slurp_text: build/yoyo.o \
 		tests/test_slurp_text.c
@@ -104,7 +112,9 @@ debug/test_slurp_text: debug/yoyo.o \
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
 check_debug_slurp_text: debug/test_slurp_text
-	./debug/test_slurp_text
+	$(VALGRIND) ./debug/test_slurp_text >$@.out 2>&1
+	grep -vq 'definitely lost' $@.out
+	rm -f $@.out
 
 build/test_state_list_new: build/yoyo.o \
 		tests/test_state_list_new.c
@@ -118,7 +128,9 @@ debug/test_state_list_new: debug/yoyo.o \
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
 check_debug_state_list_new: debug/test_state_list_new
-	./debug/test_state_list_new
+	$(VALGRIND) ./debug/test_state_list_new >$@.out 2>&1
+	grep -vq 'definitely lost' $@.out
+	rm -f $@.out
 
 build/test_yoyo_main: build/yoyo.o \
 		tests/test_yoyo_main.c
@@ -132,7 +144,9 @@ debug/test_yoyo_main: debug/yoyo.o \
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
 check_debug_yoyo_main: debug/test_yoyo_main
-	./debug/test_yoyo_main
+	$(VALGRIND) ./debug/test_yoyo_main >$@.out 2>&1
+	grep -vq 'definitely lost' $@.out
+	rm -f $@.out
 
 build/test_exit_reason: build/yoyo.o \
 		tests/test_exit_reason.c
@@ -146,7 +160,9 @@ debug/test_exit_reason: debug/yoyo.o \
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
 check_debug_exit_reason: debug/test_exit_reason
-	./debug/test_exit_reason
+	$(VALGRIND) ./debug/test_exit_reason >$@.out 2>&1
+	grep -vq 'definitely lost' $@.out
+	rm -fv $@.out
 
 check-build-unit: check_build_yoyo_parse_command_line \
 		check_build_exit_reason \
@@ -182,8 +198,9 @@ build--version: ./build/$(YOYO_BIN)
 
 debug--version: ./debug/$(YOYO_BIN)
 	@echo
-	./debug/$(YOYO_BIN) --version >$@.out 2>&1
+	$(VALGRIND) ./debug/$(YOYO_BIN) --version >$@.out 2>&1
 	grep '0.0.1' $@.out
+	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -199,11 +216,12 @@ build--help:./build/$(YOYO_BIN)
 
 debug--help: ./debug/$(YOYO_BIN)
 	@echo
-	./debug/$(YOYO_BIN) --help >$@.out 2>&1
+	$(VALGRIND) ./debug/$(YOYO_BIN) --help >$@.out 2>&1
 	grep 'wait-interval' $@.out
 	grep 'max-hangs' $@.out
 	grep 'max-retries' $@.out
 	grep 'verbose' $@.out
+	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -225,12 +243,13 @@ check-debug-acceptance-succeed-first-try: debug/$(YOYO_BIN) debug/faux-rogue
 	@echo "succeed first try"
 	echo "0" > tmp.$@.failcount
 	FAILCOUNT=tmp.$@.failcount \
-		./debug/$(YOYO_BIN) \
+		$(VALGRIND) ./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--verbose=2 \
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
 		>$@.out 2>&1
 	grep '(succeed)' $@.out
+	grep -vq 'definitely lost' $@.out
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -254,7 +273,7 @@ check-debug-acceptance-fail-one-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
 	@echo "fail once, then succeed"
 	echo "1" > tmp.$@.failcount
 	FAILCOUNT=tmp.$@.failcount \
-		./debug/$(YOYO_BIN) \
+		$(VALGRIND) ./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--verbose=2 \
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
@@ -262,6 +281,7 @@ check-debug-acceptance-fail-one-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
 	grep 'Child exited with status 127' $@.out
 	grep '(succeed)' $@.out
 	grep 0 tmp.$@.failcount
+	grep -vq 'definitely lost' $@.out
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -283,12 +303,13 @@ check-debug-acceptance-succeed-after-long-time: debug/$(YOYO_BIN) debug/faux-rog
 	@echo "succeed after a long time"
 	echo "0" > tmp.$@.failcount
 	FAILCOUNT=tmp.$@.failcount \
-		./debug/$(YOYO_BIN) \
+		$(VALGRIND) ./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--verbose=2 \
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP_LONG) \
 		>$@.out 2>&1
 	grep '(succeed)' $@.out
+	grep -vq 'definitely lost' $@.out
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -309,13 +330,14 @@ check-debug-acceptance-hang-twice-then-succeed: debug/$(YOYO_BIN) debug/faux-rog
 	echo "./debug/faux-rogue will hang twice"
 	echo "-2" > tmp.$@.failcount
 	FAILCOUNT=tmp.$@.failcount \
-		./debug/$(YOYO_BIN) \
+		$(VALGRIND) ./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--verbose=2 \
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
 		>$@.out 2>&1
 	grep 'terminated by a signal 15' $@.out
 	grep '(succeed)' $@.out
+	grep -vq 'definitely lost' $@.out
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -338,13 +360,14 @@ check-debug-acceptance-fail-every-time: debug/$(YOYO_BIN) debug/faux-rogue
 	echo "now ./debug/faux-rogue will hang every time"
 	echo "100" > tmp.$@.failcount
 	-( FAILCOUNT=tmp.$@.failcount \
-		./debug/$(YOYO_BIN) \
+		$(VALGRIND) ./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--max-hangs=3 --max-retries=2 \
 		--verbose=2 \
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
 		>$@.out 2>&1 )
 	grep 'Retries limit reached' $@.out
+	grep -vq 'definitely lost' $@.out
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -367,13 +390,14 @@ check-debug-acceptance-hang-every-time: debug/$(YOYO_BIN) debug/faux-rogue
 	echo "now ./debug/faux-rogue will hang every time"
 	echo "-100" > tmp.$@.failcount
 	-( FAILCOUNT=tmp.$@.failcount \
-		./debug/$(YOYO_BIN) \
+		$(VALGRIND) ./debug/$(YOYO_BIN) \
 		--wait-interval=$(WAIT_INTERVAL) \
 		--max-hangs=3 --max-retries=2 \
 		--verbose=2 \
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
 		>$@.out 2>&1 )
 	grep 'Retries limit reached' $@.out
+	grep -vq 'definitely lost' $@.out
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -382,7 +406,7 @@ check-build-acceptance: \
 		build--help \
 		check-build-acceptance-succeed-first-try \
 		check-build-acceptance-fail-one-then-succeed \
-		check-debug-acceptance-succeed-after-long-time \
+		check-build-acceptance-succeed-after-long-time \
 		check-build-acceptance-hang-twice-then-succeed \
 		check-build-acceptance-fail-every-time \
 		check-build-acceptance-hang-every-time
@@ -433,14 +457,14 @@ check-ruby-success: ruby/yoyo ruby/fixture
 	@echo "ruby"
 	echo "0" > tmp.$@.failcount
 	FAILCOUNT=tmp.$@.failcount ruby/yoyo ruby/fixture $(FIXTURE_SLEEP)
-	rm -fv tmp.$@.failcount
+	rm -f tmp.$@.failcount
 	@echo "SUCCESS! ($@)"
 
 check-ruby-fail-once: ruby/yoyo ruby/fixture
 	@echo
 	echo "1" > tmp.$@.failcount
 	FAILCOUNT=tmp.$@.failcount ruby/yoyo ruby/fixture $(FIXTURE_SLEEP)
-	rm -fv tmp.$@.failcount
+	rm -f tmp.$@.failcount
 	@echo "SUCCESS! ($@)"
 
 check-ruby: check-ruby-success check-ruby-fail-once

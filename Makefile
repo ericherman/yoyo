@@ -34,7 +34,7 @@ VALGRIND=$(shell which valgrind)
 LINDENT=indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1 -il0
 # see also: https://www.kernel.org/doc/Documentation/process/coding-style.rst
 
-default: build/$(YOYO_BIN)
+default: build/faux-rogue build/$(YOYO_BIN)
 
 build/yoyo.o: src/yoyo.c src/yoyo.h
 	mkdir -pv build
@@ -183,9 +183,11 @@ debug-check-unit: debug_check_yoyo_parse_command_line \
 	@echo "SUCCESS! ($@)"
 
 build/faux-rogue: tests/faux-rogue.c
+	mkdir -pv build
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
 debug/faux-rogue: tests/faux-rogue.c
+	mkdir -pv debug
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
 

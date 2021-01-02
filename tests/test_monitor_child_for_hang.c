@@ -4,6 +4,7 @@
 #include "yoyo.h"
 
 #include <sys/types.h>
+#include <sys/param.h>
 
 extern int (*yoyo_kill)(pid_t pid, int sig);
 extern unsigned int (*yoyo_sleep)(unsigned int seconds);
@@ -18,7 +19,8 @@ extern void (*free_states)(struct state_list * l);
 struct monitor_child_context {
 	unsigned *failures;
 	long childpid;
-	struct state_list *template_sl;
+	struct state_list *templates;
+	size_t template_len;
 	unsigned has_exited;
 	unsigned sleep_count;
 	unsigned get_states_count;
@@ -70,8 +72,9 @@ struct state_list *faux_get_states(long pid, const char *fakeroot)
 
 	check_for_proc_end();
 
-	size_t len = ctx->has_exited ? 0 : ctx->template_sl->len;
-	struct state_list *template = ctx->template_sl;
+	size_t len = ctx->has_exited ? 0 : ctx->templates->len;
+	size_t idx = MIN(ctx->get_states_count, ctx->template_len) - 1;
+	struct state_list *template = ctx->templates + idx;
 
 	struct state_list *new_list = state_list_new(len);
 	if (!new_list) {
@@ -135,21 +138,22 @@ unsigned int faux_sleep(unsigned int seconds)
 	}
 
 	/* maybe update some counters */
-	if (!ctx->sig_term_count && !ctx->sig_kill_count) {
-		size_t pos = (ctx->sleep_count % (ctx->template_sl->len + 2));
-		if (pos < ctx->template_sl->len) {
+	if ((ctx->get_states_count >= ctx->templates->len) &&
+	    !ctx->sig_term_count && !ctx->sig_kill_count) {
+		size_t pos = (ctx->sleep_count % (ctx->templates->len + 2));
+		if (pos < ctx->templates->len) {
 			if (ctx->get_states_count % 2) {
-				ctx->template_sl->states[pos].utime++;
+				ctx->templates->states[pos].utime++;
 			} else {
-				ctx->template_sl->states[pos].stime++;
+				ctx->templates->states[pos].stime++;
 			}
 		}
 	}
 
 	if (ctx->get_states_sleeping_after &&
 	    ctx->get_states_sleeping_after < ctx->get_states_count) {
-		for (size_t i = 0; i < ctx->template_sl->len; ++i) {
-			ctx->template_sl->states[i].state = 'S';
+		for (size_t i = 0; i < ctx->templates->len; ++i) {
+			ctx->templates->states[i].state = 'S';
 		}
 	}
 
@@ -174,7 +178,8 @@ unsigned test_monitor_and_exit_after_4(void)
 
 	ctx->failures = &failures;
 	ctx->childpid = childpid;
-	ctx->template_sl = &template;
+	ctx->templates = &template;
+	ctx->template_len = 1;
 	ctx->get_states_exit_at = 4;
 	ctx->get_states_sleeping_after = 2;
 
@@ -232,7 +237,8 @@ unsigned test_monitor_requires_sigkill(void)
 
 	ctx->failures = &failures;
 	ctx->childpid = childpid;
-	ctx->template_sl = &template;
+	ctx->templates = &template;
+	ctx->template_len = 1;
 	ctx->get_states_sleeping_after = 2;
 	ctx->sig_kill_count_to_set_exited = 1;
 

@@ -6,10 +6,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 extern int yoyo_verbose;
 extern void *(*yoyo_calloc)(size_t nmemb, size_t size);
 extern void (*yoyo_free)(void *ptr);
+extern struct state_list *(*get_states) (long pid, const char *fakeroot);
+extern void (*free_states)(struct state_list *l);
+extern int yoyo_verbose;
+extern FILE *yoyo_stdout;
+extern FILE *yoyo_stderr;
 
 struct error_injecting_mem_context {
 	unsigned long allocs;
@@ -20,13 +27,11 @@ struct error_injecting_mem_context {
 	unsigned long attempts;
 	unsigned long attempts_to_fail_bitmask;
 };
-
-struct error_injecting_mem_context *global_mem_context = NULL;
+struct error_injecting_mem_context global_mem_context;
+struct error_injecting_mem_context *ctx = &global_mem_context;
 
 void *err_calloc(size_t nmemb, size_t size)
 {
-	struct error_injecting_mem_context *ctx = global_mem_context;
-
 	if (0x01 & (ctx->attempts_to_fail_bitmask >> ctx->attempts++)) {
 		return NULL;
 	}
@@ -48,8 +53,6 @@ void *err_calloc(size_t nmemb, size_t size)
 
 void err_free(void *ptr)
 {
-	struct error_injecting_mem_context *ctx = global_mem_context;
-
 	if (ptr == NULL) {
 		return;
 	}
@@ -68,9 +71,7 @@ unsigned test_state_list_new_no_errors(void)
 {
 	unsigned failures = 0;
 
-	struct error_injecting_mem_context ctx;
-	memset(&ctx, 0x00, sizeof(struct error_injecting_mem_context));
-	global_mem_context = &ctx;
+	memset(ctx, 0x00, sizeof(struct error_injecting_mem_context));
 
 	size_t len = 17;
 	struct state_list *sl = state_list_new(len);
@@ -95,30 +96,96 @@ unsigned test_state_list_new_no_errors(void)
 
 	state_list_free(sl);
 
-	if (!ctx.attempts) {
+	if (!ctx->attempts) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected %zu but was 0\n",
 			__FILE__, __func__, __LINE__, "attempts", (size_t)2);
 		++failures;
 	}
 
-	if (ctx.frees != ctx.allocs) {
+	if (ctx->frees != ctx->allocs) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s (frees %zu, allocs %zu)\n",
 			__FILE__, __func__, __LINE__, "frees != allocs",
-			ctx.frees, ctx.allocs);
+			ctx->frees, ctx->allocs);
 		++failures;
 	}
 
-	if (!ctx.alloc_bytes) {
+	if (!ctx->alloc_bytes) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected non-zero\n",
 			__FILE__, __func__, __LINE__, "alloc_bytes");
 		++failures;
 	}
-	if (ctx.free_bytes != ctx.alloc_bytes) {
+	if (ctx->free_bytes != ctx->alloc_bytes) {
 		fprintf(stderr,
 			"%s:%s:%d FAIL: %s (free_bytes %zu, alloc_bytes %zu)\n",
 			__FILE__, __func__, __LINE__,
-			"free_bytes != alloc_bytes", ctx.free_bytes,
-			ctx.alloc_bytes);
+			"free_bytes != alloc_bytes", ctx->free_bytes,
+			ctx->alloc_bytes);
+		++failures;
+	}
+
+	return failures;
+}
+
+unsigned test_state_list_pid(void)
+{
+	unsigned failures = 0;
+
+	memset(ctx, 0x00, sizeof(struct error_injecting_mem_context));
+
+	pid_t pid = getpid();
+	const char *fakeroot = NULL;
+
+	char buf[250];
+	memset(buf, 0x00, 250);
+	FILE *fbuf = fmemopen(buf, 250, "w");
+	yoyo_verbose = 2;
+	yoyo_stdout = fbuf;
+	yoyo_stderr = fbuf;
+
+	struct state_list *sl = get_states(pid, fakeroot);
+
+	fflush(fbuf);
+	fclose(fbuf);
+	yoyo_verbose = 0;
+	yoyo_stdout = NULL;
+	yoyo_stderr = NULL;
+
+	if (!sl) {
+		fprintf(stderr, "%s:%s:%d FAIL: state_list_new null? (%s)\n",
+			__FILE__, __func__, __LINE__, buf);
+		++failures;
+	}
+
+	if (!sl->states) {
+		fprintf(stderr, "%s:%s:%d FAIL: sl->states is null (%s)\n",
+			__FILE__, __func__, __LINE__, buf);
+		++failures;
+	}
+
+	if (sl->states && sl->states[0].state != 'R') {
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s expected %c but was %c\n",
+			__FILE__, __func__, __LINE__,
+			"sl->states[0].state", 'R', sl->states[0].state);
+		++failures;
+	}
+
+	state_list_free(sl);
+
+	if (ctx->frees != ctx->allocs) {
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s (frees %zu, allocs %zu)\n",
+			__FILE__, __func__, __LINE__, "frees != allocs",
+			ctx->frees, ctx->allocs);
+		++failures;
+	}
+
+	if (ctx->free_bytes != ctx->alloc_bytes) {
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s (free_bytes %zu, alloc_bytes %zu)\n",
+			__FILE__, __func__, __LINE__,
+			"free_bytes != alloc_bytes", ctx->free_bytes,
+			ctx->alloc_bytes);
 		++failures;
 	}
 
@@ -129,16 +196,15 @@ unsigned test_state_list_new_first_error(void)
 {
 	unsigned failures = 0;
 
-	struct error_injecting_mem_context ctx;
-	memset(&ctx, 0x00, sizeof(struct error_injecting_mem_context));
-	global_mem_context = &ctx;
-	ctx.attempts_to_fail_bitmask = 0x01;
+	memset(ctx, 0x00, sizeof(struct error_injecting_mem_context));
+	ctx->attempts_to_fail_bitmask = 0x01;
 
 	size_t len = 17;
 	struct state_list *sl = state_list_new(len);
 
 	if (sl) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s exptected NULL, was %p\n",
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s exptected NULL, was %p\n",
 			__FILE__, __func__, __LINE__, "state_list_new",
 			(void *)sl);
 		++failures;
@@ -146,25 +212,27 @@ unsigned test_state_list_new_first_error(void)
 
 	state_list_free(sl);
 
-	if (!ctx.attempts) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %zu but was 0\n",
+	if (!ctx->attempts) {
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s expected %zu but was 0\n",
 			__FILE__, __func__, __LINE__, "attempts", (size_t)1);
 		++failures;
 	}
 
-	if (ctx.frees != ctx.allocs) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s (frees %zu, allocs %zu)\n",
+	if (ctx->frees != ctx->allocs) {
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s (frees %zu, allocs %zu)\n",
 			__FILE__, __func__, __LINE__, "frees != allocs",
-			ctx.frees, ctx.allocs);
+			ctx->frees, ctx->allocs);
 		++failures;
 	}
 
-	if (ctx.free_bytes != ctx.alloc_bytes) {
+	if (ctx->free_bytes != ctx->alloc_bytes) {
 		fprintf(stderr,
 			"%s:%s:%d FAIL: %s (free_bytes %zu, alloc_bytes %zu)\n",
 			__FILE__, __func__, __LINE__,
-			"free_bytes != alloc_bytes", ctx.free_bytes,
-			ctx.alloc_bytes);
+			"free_bytes != alloc_bytes", ctx->free_bytes,
+			ctx->alloc_bytes);
 		++failures;
 	}
 
@@ -175,16 +243,15 @@ unsigned test_state_list_new_second_error(void)
 {
 	unsigned failures = 0;
 
-	struct error_injecting_mem_context ctx;
-	memset(&ctx, 0x00, sizeof(struct error_injecting_mem_context));
-	global_mem_context = &ctx;
-	ctx.attempts_to_fail_bitmask = (0x01 << 1);
+	memset(ctx, 0x00, sizeof(struct error_injecting_mem_context));
+	ctx->attempts_to_fail_bitmask = (0x01 << 1);
 
 	size_t len = 17;
 	struct state_list *sl = state_list_new(len);
 
 	if (sl) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s exptected NULL, was %p\n",
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s exptected NULL, was %p\n",
 			__FILE__, __func__, __LINE__, "state_list_new",
 			(void *)sl);
 		++failures;
@@ -192,25 +259,27 @@ unsigned test_state_list_new_second_error(void)
 
 	state_list_free(sl);
 
-	if (!ctx.attempts) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %zu but was 0\n",
+	if (!ctx->attempts) {
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s expected %zu but was 0\n",
 			__FILE__, __func__, __LINE__, "attempts", (size_t)2);
 		++failures;
 	}
 
-	if (ctx.frees != ctx.allocs) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s (frees %zu, allocs %zu)\n",
+	if (ctx->frees != ctx->allocs) {
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s (frees %zu, allocs %zu)\n",
 			__FILE__, __func__, __LINE__, "frees != allocs",
-			ctx.frees, ctx.allocs);
+			ctx->frees, ctx->allocs);
 		++failures;
 	}
 
-	if (ctx.free_bytes != ctx.alloc_bytes) {
+	if (ctx->free_bytes != ctx->alloc_bytes) {
 		fprintf(stderr,
 			"%s:%s:%d FAIL: %s (free_bytes %zu, alloc_bytes %zu)\n",
 			__FILE__, __func__, __LINE__,
-			"free_bytes != alloc_bytes", ctx.free_bytes,
-			ctx.alloc_bytes);
+			"free_bytes != alloc_bytes", ctx->free_bytes,
+			ctx->alloc_bytes);
 		++failures;
 	}
 	return failures;
@@ -224,6 +293,7 @@ int main(void)
 	yoyo_free = err_free;
 
 	failures += test_state_list_new_no_errors();
+	failures += test_state_list_pid();
 
 	yoyo_verbose = -1;
 	failures += test_state_list_new_first_error();

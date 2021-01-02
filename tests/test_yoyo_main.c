@@ -11,7 +11,7 @@
 extern FILE *yoyo_stdout;
 extern FILE *yoyo_stderr;
 
-typedef pid_t(*fork_func) (void);
+typedef pid_t (*fork_func)(void);
 extern fork_func yoyo_fork;
 
 typedef int (*execv_func)(const char *pathname, char *const argv[]);
@@ -58,9 +58,10 @@ unsigned test_fake_fork(void)
 	char *argv[5] = { argv0, argv1, child_argv0, child_argv1, NULL };
 	const int argc = 4;
 
-	char buf[250];
-	memset(buf, 0x00, 250);
-	FILE *fbuf = fmemopen(buf, 250, "w");
+	const size_t buflen = 80 * 24;
+	char buf[80 * 24];
+	memset(buf, 0x00, buflen);
+	FILE *fbuf = fmemopen(buf, buflen, "w");
 	yoyo_stdout = fbuf;
 	yoyo_stderr = fbuf;
 
@@ -68,6 +69,8 @@ unsigned test_fake_fork(void)
 
 	fflush(fbuf);
 	fclose(fbuf);
+	yoyo_stdout = dev_null;
+	yoyo_stderr = dev_null;
 
 	if (!strstr(buf, child_argv0)) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s no '%s' in: %s\n",
@@ -106,6 +109,117 @@ unsigned test_fake_fork(void)
 	if (exit_val != 0) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected %d but was %d\n",
 			__FILE__, __func__, __LINE__, "exit_val", 0, exit_val);
+		++failures;
+	}
+
+	return failures;
+}
+
+unsigned test_help(void)
+{
+	fork_count = 0;
+	execv_count = 0;
+	stash_pathname = NULL;
+	stash_argv = NULL;
+	fake_counting_fork_rv = 0;
+
+	yoyo_fork = fake_counting_fork;
+	yoyo_execv = fake_counting_execv;
+
+	unsigned failures = 0;
+
+	char *argv0 = "./yoyo";
+	char *argv1 = "--help";
+	char *argv[3] = { argv0, argv1, NULL };
+	const int argc = 2;
+
+	const size_t buflen = 80 * 24;
+	char buf[80 * 24];
+	memset(buf, 0x00, buflen);
+	FILE *fbuf = fmemopen(buf, buflen, "w");
+	yoyo_stdout = fbuf;
+	yoyo_stderr = fbuf;
+
+	yoyo_main(argc, argv);
+
+	fflush(fbuf);
+	fclose(fbuf);
+	yoyo_stdout = dev_null;
+	yoyo_stderr = dev_null;
+
+	if (!strstr(buf, "max-hangs")) {
+		fprintf(stderr, "%s:%s:%d FAIL: %s no '%s' in: %s\n",
+			__FILE__, __func__, __LINE__, "help", "max-hangs", buf);
+		++failures;
+	}
+
+	if (fork_count) {
+		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
+			__FILE__, __func__, __LINE__, "fork_count", 0U,
+			fork_count);
+		++failures;
+	}
+
+	if (execv_count) {
+		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
+			__FILE__, __func__, __LINE__, "execv_count", 0U,
+			execv_count);
+		++failures;
+	}
+
+	return failures;
+}
+
+unsigned test_version(void)
+{
+	fork_count = 0;
+	execv_count = 0;
+	stash_pathname = NULL;
+	stash_argv = NULL;
+	fake_counting_fork_rv = 0;
+
+	yoyo_fork = fake_counting_fork;
+	yoyo_execv = fake_counting_execv;
+
+	unsigned failures = 0;
+
+	char *argv0 = "./yoyo";
+	char *argv1 = "--version";
+	char *argv[3] = { argv0, argv1, NULL };
+	const int argc = 2;
+
+	const size_t buflen = 80 * 24;
+	char buf[80 * 24];
+	memset(buf, 0x00, buflen);
+	FILE *fbuf = fmemopen(buf, buflen, "w");
+	yoyo_stdout = fbuf;
+	yoyo_stderr = fbuf;
+
+	yoyo_main(argc, argv);
+
+	fflush(fbuf);
+	fclose(fbuf);
+	yoyo_stdout = dev_null;
+	yoyo_stderr = dev_null;
+
+	const char *expect = "0.0.1";
+	if (!strstr(buf, expect)) {
+		fprintf(stderr, "%s:%s:%d FAIL: %s no '%s' in: %s\n",
+			__FILE__, __func__, __LINE__, "version", expect, buf);
+		++failures;
+	}
+
+	if (fork_count) {
+		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
+			__FILE__, __func__, __LINE__, "fork_count", 0U,
+			fork_count);
+		++failures;
+	}
+
+	if (execv_count) {
+		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
+			__FILE__, __func__, __LINE__, "execv_count", 0U,
+			execv_count);
 		++failures;
 	}
 
@@ -228,6 +342,8 @@ int main(void)
 	failures += test_fake_fork();
 	failures += test_failing_fork();
 	failures += test_do_not_even_try_if_no_child();
+	failures += test_help();
+	failures += test_version();
 
 	fflush(dev_null);
 	fclose(dev_null);

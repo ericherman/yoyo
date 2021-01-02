@@ -9,7 +9,7 @@
 extern int (*yoyo_kill)(pid_t pid, int sig);
 extern unsigned int (*yoyo_sleep)(unsigned int seconds);
 extern struct state_list *(*get_states) (long pid, const char *fakeroot);
-extern void (*free_states)(struct state_list * l);
+extern void (*free_states)(struct state_list *l);
 
 #include <stdio.h>
 #include <string.h>

@@ -447,7 +447,14 @@ check-ruby: check-ruby-success check-ruby-fail-once
 	@echo "SUCCESS! ($@)"
 
 tidy:
-	$(LINDENT) -T FILE src/*.c src/*.h tests/*.c
+	$(LINDENT) -T FILE -T pid_t \
+		-T error_injecting_mem_context \
+		-T exit_reason \
+		-T monitor_child_context \
+		-T state_list \
+		-T thread_state \
+		-T yoyo_options \
+		src/*.c src/*.h tests/*.c
 
 clean:
 	rm -rvf build/* debug/* `cat .gitignore | sed -e 's/#.*//'`

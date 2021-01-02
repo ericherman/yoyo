@@ -67,7 +67,7 @@ void *(*yoyo_calloc)(size_t nmemb, size_t size) = calloc;
 void (*yoyo_free)(void *ptr) = free;
 
 /* global pointers to fork, execv, kill, sleep provided for testing */
-pid_t(*yoyo_fork) (void) = fork;
+pid_t (*yoyo_fork)(void) = fork;
 int (*yoyo_execv)(const char *pathname, char *const argv[]) = execv;
 int (*yoyo_kill)(pid_t pid, int sig) = kill;
 unsigned int (*yoyo_sleep)(unsigned int seconds) = sleep;
@@ -75,7 +75,7 @@ unsigned int (*yoyo_sleep)(unsigned int seconds) = sleep;
 /* global pointers to internal functions */
 struct state_list *(*get_states) (long pid, const char *fakeroot) =
     get_states_proc;
-void (*free_states)(struct state_list * l) = state_list_free;
+void (*free_states)(struct state_list *l) = state_list_free;
 
 /*************************************************************************/
 /* functions */
@@ -266,6 +266,10 @@ char *slurp_text(char *buf, size_t buflen, const char *path)
 	errno = 0;
 	size_t n = fread(buf, 1, buflen - 1, f);
 	fclose(f);
+
+	if (yoyo_verbose > 1) {
+		fprintf(Ystderr, "slurp_text: '%s'\n", buf);
+	}
 	return n ? buf : NULL;
 }
 

@@ -84,6 +84,22 @@ debug_check_process_looks_hung: debug/test_process_looks_hung
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
 
+build/test_qemu_states: build/yoyo.o \
+		tests/test_qemu_states.c
+	$(CC) $(BUILD_CFLAGS) $^ -o $@
+
+check_qemu_states: build/test_qemu_states
+	./build/test_qemu_states
+
+debug/test_qemu_states: debug/yoyo.o \
+		tests/test_qemu_states.c
+	$(CC) $(DEBUG_CFLAGS) $^ -o $@
+
+debug_check_qemu_states: debug/test_qemu_states
+	$(VALGRIND) ./debug/test_qemu_states >$@.out 2>&1
+	grep -vq 'definitely lost' $@.out
+	rm -f $@.out
+
 build/test_monitor_child_for_hang: build/yoyo.o \
 		tests/test_monitor_child_for_hang.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
@@ -99,6 +115,7 @@ debug_check_monitor_child_for_hang: debug/test_monitor_child_for_hang
 	$(VALGRIND) ./debug/test_monitor_child_for_hang >$@.out 2>&1
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
+
 
 build/test_slurp_text: build/yoyo.o \
 		tests/test_slurp_text.c
@@ -170,6 +187,7 @@ check-unit: check_yoyo_parse_command_line \
 		check_slurp_text \
 		check_state_list_new \
 		check_process_looks_hung \
+		check_qemu_states \
 		check_monitor_child_for_hang
 	@echo "SUCCESS! ($@)"
 
@@ -179,6 +197,7 @@ debug-check-unit: debug_check_yoyo_parse_command_line \
 		debug_check_slurp_text \
 		debug_check_state_list_new \
 		debug_check_process_looks_hung \
+		debug_check_qemu_states \
 		debug_check_monitor_child_for_hang
 	@echo "SUCCESS! ($@)"
 

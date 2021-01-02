@@ -226,8 +226,8 @@ int process_looks_hung(struct state_list **next, struct state_list *previous,
 		struct thread_state new_state = current->states[i];
 
 		if ((old_state.pid != new_state.pid)
-		    || (new_state.utime > (old_state.utime + 1))
-		    || (new_state.stime > (old_state.stime + 1))
+		    || (new_state.utime > (old_state.utime + 5))
+		    || (new_state.stime > (old_state.stime + 5))
 		    ) {
 			*next = NULL;
 			return 0;
@@ -420,8 +420,12 @@ void monitor_child_for_hang(long childpid, unsigned max_hangs,
 	const int sig_exists = 0;
 	while (yoyo_kill(childpid, sig_exists) == 0) {
 		unsigned int seconds = hang_check_interval;
-		unsigned int remain = yoyo_sleep(seconds);
-		(void)remain;	// ignore, maybe interrupted by a handler?
+		unsigned int seconds_remaining = yoyo_sleep(seconds);
+		if (seconds_remaining && yoyo_verbose > 0) {
+			fprintf(Ystdout,
+				"Interrupted with %u seconds remaining.\n",
+				seconds_remaining);
+		}
 		struct state_list *previous = thread_states;
 		struct state_list *current = get_states(childpid, fakeroot);
 		if (process_looks_hung(&thread_states, previous, current)) {
@@ -436,7 +440,7 @@ void monitor_child_for_hang(long childpid, unsigned max_hangs,
 				Errorf("kill(childpid, %d) returned %d", sigstr,
 				       err);
 			}
-			yoyo_sleep(0);	// yeild
+			yoyo_sleep(0);	// yield
 		} else {
 			hang_count = 0;
 			if (yoyo_verbose > 0) {

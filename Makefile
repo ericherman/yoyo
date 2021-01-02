@@ -12,9 +12,9 @@ BROWSER=firefox
 
 YOYO_BIN=yoyo
 
-FIXTURE_SLEEP ?= 2
-WAIT_INTERVAL ?= 5
-FIXTURE_SLEEP_LONG ?= 8
+FIXTURE_SLEEP ?= 1
+WAIT_INTERVAL ?= 3
+FIXTURE_SLEEP_LONG ?= 5
 
 COMMON_CFLAGS += -g -Wall -Wextra -pedantic -Werror -I./src $(CFLAGS)
 

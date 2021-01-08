@@ -256,10 +256,10 @@ unsigned test_monitor_requires_sigkill(void)
 	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
 			       fakeroot);
 
-	if (ctx->sig_term_count < max_hangs) {
+	if (!ctx->sig_term_count) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "ctx->sig_term_count",
-			max_hangs, ctx->sig_term_count);
+			__FILE__, __func__, __LINE__, "ctx->sig_term_count", 1,
+			ctx->sig_term_count);
 		++failures;
 	}
 

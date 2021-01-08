@@ -232,6 +232,20 @@ void free_templates(struct monitor_child_context *dup)
 	dup = NULL;
 }
 
+size_t max_hangs_for_len(size_t len)
+{
+	if (len < 2) {
+		fprintf(stderr, "%s:%s:%d ERROR! len: %zu\n",
+			__FILE__, __func__, __LINE__, len);
+		fprintf(stderr, "The first check is _never_ considered hung\n");
+		fprintf(stderr, " and there must be a 'next' to compare to.\n");
+		fprintf(stderr, "Thus the max_hangs for any size is the\n");
+		fprintf(stderr, " length minus the first AND last.\n");
+		exit(EXIT_FAILURE);
+	}
+	return len - 2;
+}
+
 unsigned test_qemu_hung(void)
 {
 	unsigned failures = 0;
@@ -250,7 +264,7 @@ unsigned test_qemu_hung(void)
 	free_states = faux_free_states;
 
 	pid_t childpid = ctx->templates[0]->states[0].pid;
-	unsigned max_hangs = 5;
+	unsigned max_hangs = max_hangs_for_len(ctx->templates_len);
 	unsigned hang_check_interval = 60;
 	const char *fakeroot = NULL;
 	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
@@ -283,14 +297,13 @@ unsigned test_qemu_active_state_4(void)
 	free_states = faux_free_states;
 
 	pid_t childpid = ctx->templates[0]->states[0].pid;
-	unsigned max_hangs = 5;
+	unsigned max_hangs = max_hangs_for_len(ctx->templates_len);
 	unsigned hang_check_interval = 60;
 	const char *fakeroot = NULL;
 	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
 			       fakeroot);
 
-	/* expect it look hung 3 times, but not the 4th */
-	if (ctx->killed > 3) {
+	if (ctx->killed) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected 3 but was %u\n",
 			__FILE__, __func__, __LINE__, "ctx->kiled",
 			ctx->killed);

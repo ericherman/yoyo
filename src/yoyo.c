@@ -430,17 +430,21 @@ void monitor_child_for_hang(long childpid, unsigned max_hangs,
 		struct state_list *current = get_states(childpid, fakeroot);
 		if (process_looks_hung(&thread_states, previous, current)) {
 			++hang_count;
-			int sig = hang_count <= max_hangs ? SIGTERM : SIGKILL;
-			errno = 0;
-			int err = yoyo_kill(childpid, sig);
-			/* ESRCH: No such process */
-			if ((yoyo_verbose > 0) || (err && (errno != ESRCH))) {
-				const char *sigstr =
-				    (sig == SIGTERM) ? "SIGTERM" : "SIGKILL";
-				Errorf("kill(childpid, %d) returned %d", sigstr,
-				       err);
+			if (hang_count > max_hangs) {
+				int need_dash_9 = hang_count > (max_hangs + 1);
+				int sig = need_dash_9 ? SIGKILL : SIGTERM;
+				errno = 0;
+				int err = yoyo_kill(childpid, sig);
+				/* ESRCH: No such process */
+				if ((yoyo_verbose > 0)
+				    || (err && (errno != ESRCH))) {
+					const char *sigstr = (sig == SIGKILL)
+					    ? "SIGKILL" : "SIGTERM";
+					Errorf("kill(childpid, %d) returned %d",
+					       sigstr, err);
+				}
+				yoyo_sleep(0);	// yield after kill
 			}
-			yoyo_sleep(0);	// yield
 		} else {
 			hang_count = 0;
 			if (yoyo_verbose > 0) {

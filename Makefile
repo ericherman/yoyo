@@ -73,7 +73,8 @@ debug/test_yoyo_parse_command_line: debug/yoyo.o debug/test-util.o \
 
 debug_check_yoyo_parse_command_line: debug/test_yoyo_parse_command_line
 	$(VALGRIND) ./debug/test_yoyo_parse_command_line >$@.out 2>&1
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f $@.out
 
 build/test_process_looks_hung: build/yoyo.o build/test-util.o \
@@ -89,7 +90,8 @@ debug/test_process_looks_hung: debug/yoyo.o debug/test-util.o \
 
 debug_check_process_looks_hung: debug/test_process_looks_hung
 	$(VALGRIND) ./debug/test_process_looks_hung >$@.out 2>&1
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f $@.out
 
 build/test_qemu_states: build/yoyo.o build/test-util.o \
@@ -105,7 +107,8 @@ debug/test_qemu_states: debug/yoyo.o debug/test-util.o \
 
 debug_check_qemu_states: debug/test_qemu_states
 	$(VALGRIND) ./debug/test_qemu_states >$@.out 2>&1
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f $@.out
 
 build/test_monitor_child_for_hang: build/yoyo.o build/test-util.o \
@@ -121,7 +124,8 @@ debug/test_monitor_child_for_hang: debug/yoyo.o debug/test-util.o \
 
 debug_check_monitor_child_for_hang: debug/test_monitor_child_for_hang
 	$(VALGRIND) ./debug/test_monitor_child_for_hang >$@.out 2>&1
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f $@.out
 
 
@@ -138,7 +142,8 @@ debug/test_slurp_text: debug/yoyo.o debug/test-util.o \
 
 debug_check_slurp_text: debug/test_slurp_text
 	$(VALGRIND) ./debug/test_slurp_text >$@.out 2>&1
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f $@.out
 
 build/test_state_list_new: build/yoyo.o build/test-util.o \
@@ -154,7 +159,8 @@ debug/test_state_list_new: debug/yoyo.o debug/test-util.o \
 
 debug_check_state_list_new: debug/test_state_list_new
 	$(VALGRIND) ./debug/test_state_list_new >$@.out 2>&1
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f $@.out
 
 build/test_yoyo_main: build/yoyo.o build/test-util.o \
@@ -170,7 +176,8 @@ debug/test_yoyo_main: debug/yoyo.o debug/test-util.o \
 
 debug_check_yoyo_main: debug/test_yoyo_main
 	$(VALGRIND) ./debug/test_yoyo_main >$@.out 2>&1
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f $@.out
 
 build/test_exit_reason: build/yoyo.o build/test-util.o \
@@ -186,7 +193,8 @@ debug/test_exit_reason: debug/yoyo.o debug/test-util.o \
 
 debug_check_exit_reason: debug/test_exit_reason
 	$(VALGRIND) ./debug/test_exit_reason >$@.out 2>&1
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -fv $@.out
 
 check-unit: check_yoyo_parse_command_line \
@@ -229,7 +237,8 @@ debug-$(YOYO_BIN)-version: ./debug/$(YOYO_BIN)
 	@echo
 	$(VALGRIND) ./debug/$(YOYO_BIN) --version >$@.out 2>&1
 	grep '0.0.1' $@.out
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -250,7 +259,8 @@ debug-$(YOYO_BIN)-help: ./debug/$(YOYO_BIN)
 	grep 'max-hangs' $@.out
 	grep 'max-retries' $@.out
 	grep 'verbose' $@.out
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -278,7 +288,8 @@ debug-check-acceptance-succeed-first-try: debug/$(YOYO_BIN) debug/faux-rogue
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
 		>$@.out 2>&1
 	grep '(succeed)' $@.out
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -310,7 +321,8 @@ debug-check-acceptance-fail-one-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
 	grep 'Child exited with status 127' $@.out
 	grep '(succeed)' $@.out
 	grep 0 tmp.$@.failcount
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -338,7 +350,8 @@ debug-check-acceptance-succeed-after-long-time: debug/$(YOYO_BIN) debug/faux-rog
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP_LONG) \
 		>$@.out 2>&1
 	grep '(succeed)' $@.out
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -366,7 +379,8 @@ debug-check-acceptance-hang-twice-then-succeed: debug/$(YOYO_BIN) debug/faux-rog
 		>$@.out 2>&1
 	grep 'terminated by a signal 15' $@.out
 	grep '(succeed)' $@.out
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -396,7 +410,8 @@ debug-check-acceptance-fail-every-time: debug/$(YOYO_BIN) debug/faux-rogue
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
 		>$@.out 2>&1 )
 	grep 'Retries limit reached' $@.out
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -426,7 +441,8 @@ debug-check-acceptance-hang-every-time: debug/$(YOYO_BIN) debug/faux-rogue
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
 		>$@.out 2>&1 )
 	grep 'Retries limit reached' $@.out
-	grep -vq 'definitely lost' $@.out
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 

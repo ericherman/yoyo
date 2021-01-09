@@ -498,23 +498,6 @@ build/globdemo:
 globdemo: build/globdemo
 	./build/globdemo
 
-check-ruby-success: ruby/yoyo ruby/fixture
-	@echo "ruby"
-	echo "0" > tmp.$@.failcount
-	FAILCOUNT=tmp.$@.failcount ruby/yoyo ruby/fixture $(FIXTURE_SLEEP)
-	rm -f tmp.$@.failcount
-	@echo "SUCCESS! ($@)"
-
-check-ruby-fail-once: ruby/yoyo ruby/fixture
-	@echo
-	echo "1" > tmp.$@.failcount
-	FAILCOUNT=tmp.$@.failcount ruby/yoyo ruby/fixture $(FIXTURE_SLEEP)
-	rm -f tmp.$@.failcount
-	@echo "SUCCESS! ($@)"
-
-check-ruby: check-ruby-success check-ruby-fail-once
-	@echo "SUCCESS! ($@)"
-
 tidy:
 	$(LINDENT) -T FILE -T pid_t \
 		-T error_injecting_mem_context \

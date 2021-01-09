@@ -6,16 +6,14 @@
 #include "test-util.h"
 
 #include <sys/types.h>
-
-extern int (*yoyo_kill)(pid_t pid, int sig);
-extern unsigned int (*yoyo_sleep)(unsigned int seconds);
-extern struct state_list *(*get_states) (long pid, const char *fakeroot);
-extern void (*free_states)(struct state_list *l);
-
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
 #include <stdlib.h>
+
+const unsigned hang_check_interval = 60;
+const char *fakeroot = NULL;
+const pid_t childpid = 174993;
 
 const size_t qemu_state_0_len = 10;
 struct thread_state qemu_state_0[] = {
@@ -121,66 +119,81 @@ struct state_list *hung_qemu_frames[] = {
 	&qemu_state_list_4
 };
 
-struct state_list empty_state_list = {.states = NULL,.len = 0 };
-
 struct monitor_child_context {
 	unsigned *failures;
 	struct state_list **templates;
 	size_t templates_len;
 	unsigned sleep_count;
 	size_t current_state;
-	unsigned killed;
+	unsigned looks_hung;
 };
 
 struct monitor_child_context *ctx = NULL;
 
-struct state_list *faux_get_states(long pid, const char *fakeroot)
+/* some function prototypes */
+void copy_templates(struct monitor_child_context *dup,
+		    struct state_list **templates, size_t templates_len);
+void free_templates(struct monitor_child_context *dup);
+size_t max_hangs_for_len(size_t len);
+
+/* Test Functions */
+unsigned test_qemu_hung(void)
 {
-	(void)pid;
-	(void)fakeroot;
+	unsigned failures = 0;
 
-	if (ctx->current_state >= ctx->templates_len) {
-		return &empty_state_list;
-	}
-	return ctx->templates[ctx->current_state];
-}
+	struct monitor_child_context mctx;
+	memset(&mctx, 0x00, sizeof(struct monitor_child_context));
 
-void faux_free_states(struct state_list *l)
-{
-	(void)l;
-}
+	mctx.failures = &failures;
 
-int faux_kill(pid_t pid, int sig)
-{
-	(void)pid;
-	(void)sig;
+	copy_templates(&mctx, hung_qemu_frames, hung_qemu_frames_len);
+	ctx = &mctx;
 
-	/* record data about what it is doing */
-	if (sig != 0) {
-		++(ctx->killed);
-	}
+	unsigned max_hangs = max_hangs_for_len(ctx->templates_len);
 
-	return ctx->current_state < ctx->templates_len ? 0 : -1;
-}
+	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
+			       fakeroot);
 
-unsigned int faux_sleep(unsigned int seconds)
-{
-	if (seconds) {
-		if (ctx->sleep_count) {
-			++ctx->current_state;
-		}
-		++ctx->sleep_count;
+	if (!ctx->looks_hung) {
+		fprintf(stderr, "%s:%s:%d FAIL: %s expected non-zero\n",
+			__FILE__, __func__, __LINE__, "ctx->looks_hung");
+		++failures;
 	}
 
-	size_t threshold = ctx->templates_len;
-	if (ctx->current_state > threshold) {
-		fprintf(stderr, "%s:%s:%d sleep(%u) threshold %zu exceeded\n",
-			__FILE__, __func__, __LINE__, seconds, threshold);
-		exit(EXIT_FAILURE);
+	free_templates(ctx);
+	return failures;
+}
+
+unsigned test_qemu_active_state_4(void)
+{
+	unsigned failures = 0;
+
+	struct monitor_child_context mctx;
+	memset(&mctx, 0x00, sizeof(struct monitor_child_context));
+
+	mctx.failures = &failures;
+
+	copy_templates(&mctx, hung_qemu_frames, hung_qemu_frames_len);
+	mctx.templates[4]->states[9].utime += 10;
+	ctx = &mctx;
+
+	unsigned max_hangs = max_hangs_for_len(ctx->templates_len);
+
+	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
+			       fakeroot);
+
+	if (ctx->looks_hung) {
+		fprintf(stderr, "%s:%s:%d FAIL: %s expected 0 but was %u\n",
+			__FILE__, __func__, __LINE__, "ctx->looks_hung",
+			ctx->looks_hung);
+		++failures;
 	}
 
-	return ctx->killed ? 1 : 0;
+	free_templates(ctx);
+	return failures;
 }
+
+/* Test Fixture Functions */
 
 #define Calloc_or_die(pptr, nmemb, size) do { \
 	size_t _cod_nmeb = (nmemb); \
@@ -226,6 +239,9 @@ void free_templates(struct monitor_child_context *dup)
 		free(dup->templates[i]->states);
 		dup->templates[i]->states = NULL;
 		dup->templates[i]->len = 0;
+
+		free(dup->templates[i]);
+		dup->templates[i] = NULL;
 	}
 	free(dup->templates);
 	dup->templates = NULL;
@@ -247,76 +263,67 @@ size_t max_hangs_for_len(size_t len)
 	return len - 2;
 }
 
-unsigned test_qemu_hung(void)
+struct state_list empty_state_list = {.states = NULL,.len = 0 };
+
+struct state_list *faux_get_states(long pid, const char *fakeroot)
 {
-	unsigned failures = 0;
+	(void)pid;
+	(void)fakeroot;
 
-	struct monitor_child_context mctx;
-	memset(&mctx, 0x00, sizeof(struct monitor_child_context));
-
-	mctx.failures = &failures;
-
-	copy_templates(&mctx, hung_qemu_frames, hung_qemu_frames_len);
-	ctx = &mctx;
-
-	yoyo_kill = faux_kill;
-	yoyo_sleep = faux_sleep;
-	get_states = faux_get_states;
-	free_states = faux_free_states;
-
-	pid_t childpid = ctx->templates[0]->states[0].pid;
-	unsigned max_hangs = max_hangs_for_len(ctx->templates_len);
-	unsigned hang_check_interval = 60;
-	const char *fakeroot = NULL;
-	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
-			       fakeroot);
-	if (!ctx->killed) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected non-zero\n",
-			__FILE__, __func__, __LINE__, "ctx->kiled");
-		++failures;
-	}
-
-	return failures;
+	return (ctx->current_state < ctx->templates_len)
+	    ? ctx->templates[ctx->current_state]
+	    : &empty_state_list;
 }
 
-unsigned test_qemu_active_state_4(void)
+void faux_free_states(struct state_list *l)
 {
-	unsigned failures = 0;
+	(void)l;
+}
 
-	struct monitor_child_context mctx;
-	memset(&mctx, 0x00, sizeof(struct monitor_child_context));
+int faux_kill(pid_t pid, int sig)
+{
+	(void)pid;
 
-	mctx.failures = &failures;
-
-	copy_templates(&mctx, hung_qemu_frames, hung_qemu_frames_len);
-	mctx.templates[4]->states[9].utime += 10;
-	ctx = &mctx;
-
-	yoyo_kill = faux_kill;
-	yoyo_sleep = faux_sleep;
-	get_states = faux_get_states;
-	free_states = faux_free_states;
-
-	pid_t childpid = ctx->templates[0]->states[0].pid;
-	unsigned max_hangs = max_hangs_for_len(ctx->templates_len);
-	unsigned hang_check_interval = 60;
-	const char *fakeroot = NULL;
-	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
-			       fakeroot);
-
-	if (ctx->killed) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected 3 but was %u\n",
-			__FILE__, __func__, __LINE__, "ctx->kiled",
-			ctx->killed);
-		++failures;
+	/* record data about what it is doing */
+	if (sig != 0) {
+		++(ctx->looks_hung);
 	}
 
-	return failures;
+	return ctx->current_state < ctx->templates_len ? 0 : -1;
 }
+
+unsigned int faux_sleep(unsigned int seconds)
+{
+	if (seconds) {
+		if (ctx->sleep_count) {
+			++ctx->current_state;
+		}
+		++ctx->sleep_count;
+	}
+
+	size_t threshold = ctx->templates_len;
+	if (ctx->current_state > threshold) {
+		fprintf(stderr, "%s:%s:%d sleep(%u) threshold %zu exceeded\n",
+			__FILE__, __func__, __LINE__, seconds, threshold);
+		exit(EXIT_FAILURE);
+	}
+
+	return ctx->looks_hung ? 1 : 0;
+}
+
+extern int (*yoyo_kill)(pid_t pid, int sig);
+extern unsigned int (*yoyo_sleep)(unsigned int seconds);
+extern struct state_list *(*get_states) (long pid, const char *fakeroot);
+extern void (*free_states)(struct state_list *l);
 
 int main(void)
 {
 	unsigned failures = 0;
+
+	yoyo_kill = faux_kill;
+	yoyo_sleep = faux_sleep;
+	get_states = faux_get_states;
+	free_states = faux_free_states;
 
 	failures += run_test(test_qemu_hung);
 	failures += run_test(test_qemu_active_state_4);

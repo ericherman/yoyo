@@ -443,7 +443,7 @@ def process_looks_hung(pid)
       threadStates = currentThreadStates
       return false
     end
-    if (curUser > (oldUser + 1)) || (curSystem > (oldSystem + 1))
+    if (curUser > (oldUser + 5)) || (curSystem > (oldSystem + 5))
       threadStates = nil
       return false
     end

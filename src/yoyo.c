@@ -79,36 +79,7 @@ void (*free_states)(struct state_list *l) = state_list_free;
 
 /*************************************************************************/
 /* functions */
-
-int print_help(FILE *out, const char *name)
-{
-	fprintf(out, "The %s runs a program, and monitors /proc\n", YOYO_NAME);
-	fprintf(out, "Based on counters in /proc if the process looks hung,\n");
-	fprintf(out, "%s will kill and restart it.\n\n", YOYO_NAME);
-	fprintf(out, "Usage: %s [OPTION] program program-args...\n", name);
-	fprintf(out, "  -V, --version                  ");
-	fprintf(out, "print version (%s) and exit\n", YOYO_VERSION);
-	fprintf(out, "  -h, --help                     ");
-	fprintf(out, "print this message and exit\n");
-	fprintf(out, "  -v, --verbose                  ");
-	fprintf(out, "output addition error information\n");
-	fprintf(out, "  -w, --wait-interval[=seconds]  ");
-	fprintf(out, "seconds to sleep between checks\n");
-	fprintf(out, "                                 ");
-	fprintf(out, "    if < 1, defaults is %d\n",
-		DEFAULT_HANG_CHECK_INTERVAL);
-	fprintf(out, "  -m, --max-hangs[=num]          ");
-	fprintf(out, "number of hang checks to tolerate\n");
-	fprintf(out, "                                 ");
-	fprintf(out, "    if < 1, defaults is %d\n", DEFAULT_MAX_HANGS);
-	fprintf(out, "  -r, --max-retries[=num]          ");
-	fprintf(out, "max iterations to retry after hang\n");
-	fprintf(out, "                                 ");
-	fprintf(out, "    if < 1, defaults is %d\n", DEFAULT_MAX_RETRIES);
-	fprintf(out, "  -f, --fakeroot[=path]          ");
-	fprintf(out, "path to look for /proc files\n");
-	return 0;
-}
+int print_help(FILE *out, const char *name);
 
 int yoyo_main(int argc, char **argv)
 {
@@ -568,6 +539,39 @@ void exit_reason_to_str(struct exit_reason *reason, char *buf, size_t bufsize)
 	if (reason->continued) {
 		appendf(buf, bufsize, " was resumed by SIGCONT");
 	}
+}
+
+int print_help(FILE *out, const char *name)
+{
+	fprintf(out, "The %s runs a program, and monitors /proc\n", YOYO_NAME);
+	fprintf(out, "Based on counters in /proc if the process looks hung,\n");
+	fprintf(out, "%s will kill and restart it.\n\n", YOYO_NAME);
+	fprintf(out, "Typical usage does not involve options.\n");
+	fprintf(out, "Options are useful for testing.\n");
+	fprintf(out, "\n");
+	fprintf(out, "Usage: %s [OPTION] program program-args...\n", name);
+	fprintf(out, "  -V, --version                  ");
+	fprintf(out, "print version (%s) and exit\n", YOYO_VERSION);
+	fprintf(out, "  -h, --help                     ");
+	fprintf(out, "print this message and exit\n");
+	fprintf(out, "  -v, --verbose                  ");
+	fprintf(out, "output addition error information\n");
+	fprintf(out, "  -w, --wait-interval[=seconds]  ");
+	fprintf(out, "seconds to sleep between checks\n");
+	fprintf(out, "                                 ");
+	fprintf(out, "    if < 1, defaults is %d\n",
+		DEFAULT_HANG_CHECK_INTERVAL);
+	fprintf(out, "  -m, --max-hangs[=num]          ");
+	fprintf(out, "number of hang checks to tolerate\n");
+	fprintf(out, "                                 ");
+	fprintf(out, "    if < 1, defaults is %d\n", DEFAULT_MAX_HANGS);
+	fprintf(out, "  -r, --max-retries[=num]          ");
+	fprintf(out, "max iterations to retry after hang\n");
+	fprintf(out, "                                 ");
+	fprintf(out, "    if < 1, defaults is %d\n", DEFAULT_MAX_RETRIES);
+	fprintf(out, "  -f, --fakeroot[=path]          ");
+	fprintf(out, "path to look for /proc files\n");
+	return 0;
 }
 
 /* getopt/getoplong is horrrible */

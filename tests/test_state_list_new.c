@@ -192,6 +192,51 @@ unsigned test_state_list_pid(void)
 	return failures;
 }
 
+unsigned test_state_list_len_zero(void)
+{
+	unsigned failures = 0;
+
+	memset(ctx, 0x00, sizeof(struct error_injecting_mem_context));
+
+	size_t len = 0;
+	struct state_list *sl = state_list_new(len);
+
+	if (!sl) {
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s exptected non-NULL, was %p\n",
+			__FILE__, __func__, __LINE__, "state_list_new",
+			(void *)sl);
+		++failures;
+	}
+
+	state_list_free(sl);
+
+	if (!ctx->attempts) {
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s expected %zu but was 0\n",
+			__FILE__, __func__, __LINE__, "attempts", (size_t)2);
+		++failures;
+	}
+
+	if (ctx->frees != ctx->allocs) {
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s (frees %zu, allocs %zu)\n",
+			__FILE__, __func__, __LINE__, "frees != allocs",
+			ctx->frees, ctx->allocs);
+		++failures;
+	}
+
+	if (ctx->free_bytes != ctx->alloc_bytes) {
+		fprintf(stderr,
+			"%s:%s:%d FAIL: %s (free_bytes %zu, alloc_bytes %zu)\n",
+			__FILE__, __func__, __LINE__,
+			"free_bytes != alloc_bytes", ctx->free_bytes,
+			ctx->alloc_bytes);
+		++failures;
+	}
+	return failures;
+}
+
 unsigned test_state_list_new_first_error(void)
 {
 	unsigned failures = 0;
@@ -294,6 +339,7 @@ int main(void)
 
 	failures += test_state_list_new_no_errors();
 	failures += test_state_list_pid();
+	failures += test_state_list_len_zero();
 
 	yoyo_verbose = -1;
 	failures += test_state_list_new_first_error();

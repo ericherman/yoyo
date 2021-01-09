@@ -4,7 +4,7 @@
 
 unsigned run_named_test(const char *name, unsigned (*func)(void))
 {
-	fprintf(stderr, name);
+	fprintf(stderr, "  %s", name);
 	fprintf(stderr, " ...");
 	unsigned failures = func();
 	if (failures) {

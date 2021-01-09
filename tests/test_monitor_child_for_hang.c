@@ -2,6 +2,7 @@
 /* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> */
 
 #include "yoyo.h"
+#include "test-util.h"
 
 #include <sys/types.h>
 
@@ -285,8 +286,8 @@ int main(void)
 {
 	unsigned failures = 0;
 
-	failures += test_monitor_and_exit_after_4();
-	failures += test_monitor_requires_sigkill();
+	failures += run_test(test_monitor_and_exit_after_4);
+	failures += run_test(test_monitor_requires_sigkill);
 
-	return failures ? 1 : 0;
+	return failures_to_status("test_monitor_child_for_hang", failures);
 }

@@ -2,6 +2,7 @@
 /* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> */
 
 #include "yoyo.h"
+#include "test-util.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -86,8 +87,8 @@ int main(void)
 {
 	unsigned failures = 0;
 
-	failures += test_fixture_2();
-	failures += test_ls_l();
+	failures += run_test(test_fixture_2);
+	failures += run_test(test_ls_l);
 
-	return failures ? 1 : 0;
+	return failures_to_status("test_yoyo_parse_command_line", failures);
 }

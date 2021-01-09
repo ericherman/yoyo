@@ -3,6 +3,7 @@
 	Brett Neumeier <brett@freesa.org> */
 
 #include "yoyo.h"
+#include "test-util.h"
 
 #include <sys/types.h>
 
@@ -317,8 +318,8 @@ int main(void)
 {
 	unsigned failures = 0;
 
-	failures += test_qemu_hung();
-	failures += test_qemu_active_state_4();
+	failures += run_test(test_qemu_hung);
+	failures += run_test(test_qemu_active_state_4);
 
-	return failures ? 1 : 0;
+	return failures_to_status("test_qemu_states", failures);
 }

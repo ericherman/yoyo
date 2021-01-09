@@ -52,14 +52,22 @@ debug/$(YOYO_BIN): debug/yoyo.o src/yoyo-main.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 	ls -l debug/$(YOYO_BIN)
 
-build/test_yoyo_parse_command_line: build/yoyo.o \
+build/test-util.o: tests/test-util.c tests/test-util.h
+	mkdir -pv build
+	$(CC) -c $(BUILD_CFLAGS) $< -o $@
+
+debug/test-util.o: tests/test-util.c tests/test-util.h
+	mkdir -pv debug
+	$(CC) -c $(DEBUG_CFLAGS) $< -o $@
+
+build/test_yoyo_parse_command_line: build/yoyo.o build/test-util.o \
 		tests/test_yoyo_parse_command_line.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
 check_yoyo_parse_command_line: build/test_yoyo_parse_command_line
 	./build/test_yoyo_parse_command_line
 
-debug/test_yoyo_parse_command_line: debug/yoyo.o \
+debug/test_yoyo_parse_command_line: debug/yoyo.o debug/test-util.o \
 		tests/test_yoyo_parse_command_line.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
@@ -68,14 +76,14 @@ debug_check_yoyo_parse_command_line: debug/test_yoyo_parse_command_line
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
 
-build/test_process_looks_hung: build/yoyo.o \
+build/test_process_looks_hung: build/yoyo.o build/test-util.o \
 		tests/test_process_looks_hung.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
 check_process_looks_hung: build/test_process_looks_hung
 	./build/test_process_looks_hung
 
-debug/test_process_looks_hung: debug/yoyo.o \
+debug/test_process_looks_hung: debug/yoyo.o debug/test-util.o \
 		tests/test_process_looks_hung.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
@@ -84,14 +92,14 @@ debug_check_process_looks_hung: debug/test_process_looks_hung
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
 
-build/test_qemu_states: build/yoyo.o \
+build/test_qemu_states: build/yoyo.o build/test-util.o \
 		tests/test_qemu_states.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
 check_qemu_states: build/test_qemu_states
 	./build/test_qemu_states
 
-debug/test_qemu_states: debug/yoyo.o \
+debug/test_qemu_states: debug/yoyo.o debug/test-util.o \
 		tests/test_qemu_states.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
@@ -100,14 +108,14 @@ debug_check_qemu_states: debug/test_qemu_states
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
 
-build/test_monitor_child_for_hang: build/yoyo.o \
+build/test_monitor_child_for_hang: build/yoyo.o build/test-util.o \
 		tests/test_monitor_child_for_hang.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
 check_monitor_child_for_hang: build/test_monitor_child_for_hang
 	./build/test_monitor_child_for_hang
 
-debug/test_monitor_child_for_hang: debug/yoyo.o \
+debug/test_monitor_child_for_hang: debug/yoyo.o debug/test-util.o \
 		tests/test_monitor_child_for_hang.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
@@ -117,14 +125,14 @@ debug_check_monitor_child_for_hang: debug/test_monitor_child_for_hang
 	rm -f $@.out
 
 
-build/test_slurp_text: build/yoyo.o \
+build/test_slurp_text: build/yoyo.o build/test-util.o \
 		tests/test_slurp_text.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
 check_slurp_text: build/test_slurp_text
 	./build/test_slurp_text
 
-debug/test_slurp_text: debug/yoyo.o \
+debug/test_slurp_text: debug/yoyo.o debug/test-util.o \
 		tests/test_slurp_text.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
@@ -133,14 +141,14 @@ debug_check_slurp_text: debug/test_slurp_text
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
 
-build/test_state_list_new: build/yoyo.o \
+build/test_state_list_new: build/yoyo.o build/test-util.o \
 		tests/test_state_list_new.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
 check_state_list_new: build/test_state_list_new
 	./build/test_state_list_new
 
-debug/test_state_list_new: debug/yoyo.o \
+debug/test_state_list_new: debug/yoyo.o debug/test-util.o \
 		tests/test_state_list_new.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
@@ -149,14 +157,14 @@ debug_check_state_list_new: debug/test_state_list_new
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
 
-build/test_yoyo_main: build/yoyo.o \
+build/test_yoyo_main: build/yoyo.o build/test-util.o \
 		tests/test_yoyo_main.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
 check_yoyo_main: build/test_yoyo_main
 	./build/test_yoyo_main
 
-debug/test_yoyo_main: debug/yoyo.o \
+debug/test_yoyo_main: debug/yoyo.o debug/test-util.o \
 		tests/test_yoyo_main.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
@@ -165,14 +173,14 @@ debug_check_yoyo_main: debug/test_yoyo_main
 	grep -vq 'definitely lost' $@.out
 	rm -f $@.out
 
-build/test_exit_reason: build/yoyo.o \
+build/test_exit_reason: build/yoyo.o build/test-util.o \
 		tests/test_exit_reason.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
 check_exit_reason: build/test_exit_reason
 	./build/test_exit_reason
 
-debug/test_exit_reason: debug/yoyo.o \
+debug/test_exit_reason: debug/yoyo.o debug/test-util.o \
 		tests/test_exit_reason.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
@@ -502,7 +510,7 @@ tidy:
 		src/*.c src/*.h tests/*.c
 
 clean:
-	rm -rvf build/* debug/* `cat .gitignore | sed -e 's/#.*//'`
+	rm -rvf build debug `cat .gitignore | sed -e 's/#.*//'`
 	pushd src; rm -rvf `cat ../.gitignore | sed -e 's/#.*//'`; popd
 	pushd tests; rm -rvf `cat ../.gitignore | sed -e 's/#.*//'`; popd
 

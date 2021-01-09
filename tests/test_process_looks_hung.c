@@ -2,6 +2,7 @@
 /* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> */
 
 #include "yoyo.h"
+#include "test-util.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -199,11 +200,11 @@ int main(void)
 {
 	unsigned failures = 0;
 
-	failures += test_previous_is_null_next_sleeping();
-	failures += test_next_not_sleeping();
-	failures += test_all_sleeping_different_length();
-	failures += test_times_increment_by_only_one();
-	failures += test_sleeping_times_increment_by_more_than_one();
+	failures += run_test(test_previous_is_null_next_sleeping);
+	failures += run_test(test_next_not_sleeping);
+	failures += run_test(test_all_sleeping_different_length);
+	failures += run_test(test_times_increment_by_only_one);
+	failures += run_test(test_sleeping_times_increment_by_more_than_one);
 
-	return failures ? 1 : 0;
+	return failures_to_status("test_process_looks_hung", failures);
 }

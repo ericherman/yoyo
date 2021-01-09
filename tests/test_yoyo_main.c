@@ -2,6 +2,7 @@
 /* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> */
 
 #include "yoyo.h"
+#include "test-util.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -333,20 +334,20 @@ int main(void)
 {
 	dev_null = fopen("/dev/null", "w");
 	if (!dev_null) {
-		fprintf(stderr, "can't open /dev/null?\n");
+		fprintf(stderr, "%s: can't open /dev/null?\n", __FILE__);
 		return EXIT_FAILURE;
 	}
 
 	unsigned failures = 0;
 
-	failures += test_fake_fork();
-	failures += test_failing_fork();
-	failures += test_do_not_even_try_if_no_child();
-	failures += test_help();
-	failures += test_version();
+	failures += run_test(test_fake_fork);
+	failures += run_test(test_failing_fork);
+	failures += run_test(test_do_not_even_try_if_no_child);
+	failures += run_test(test_help);
+	failures += run_test(test_version);
 
 	fflush(dev_null);
 	fclose(dev_null);
 
-	return failures ? 1 : 0;
+	return failures_to_status("test_yoyo_main", failures);
 }

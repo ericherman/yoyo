@@ -2,6 +2,7 @@
 /* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> */
 
 #include "yoyo.h"
+#include "test-util.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -112,10 +113,10 @@ int main(void)
 {
 	unsigned failures = 0;
 
-	failures += test_wait_status_0();
-	failures += test_wait_status_1();
-	failures += test_wait_status_2943();
-	failures += test_wait_status_ffff();
+	failures += run_test(test_wait_status_0);
+	failures += run_test(test_wait_status_1);
+	failures += run_test(test_wait_status_2943);
+	failures += run_test(test_wait_status_ffff);
 
-	return failures ? 1 : 0;
+	return failures_to_status("test_exit_reason", failures);
 }

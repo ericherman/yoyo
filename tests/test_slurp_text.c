@@ -2,12 +2,13 @@
 /* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org>, Brett Neumeier */
 
 #include "yoyo.h"
+#include "test-util.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int main(void)
+unsigned test_slurp_tmp(void)
 {
 	char fname[24];
 	strcpy(fname, "temp.XXXXXX.slurp");
@@ -61,4 +62,13 @@ int main(void)
 	remove(fname);
 
 	return errors;
+}
+
+int main(void)
+{
+	unsigned failures = 0;
+
+	failures += run_test(test_slurp_tmp);
+
+	return failures_to_status("test_slurp_text", failures);
 }

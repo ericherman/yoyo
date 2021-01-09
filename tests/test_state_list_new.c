@@ -2,6 +2,7 @@
 /* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> */
 
 #include "yoyo.h"
+#include "test-util.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -337,13 +338,13 @@ int main(void)
 	yoyo_calloc = err_calloc;
 	yoyo_free = err_free;
 
-	failures += test_state_list_new_no_errors();
-	failures += test_state_list_pid();
-	failures += test_state_list_len_zero();
+	failures += run_test(test_state_list_new_no_errors);
+	failures += run_test(test_state_list_pid);
+	failures += run_test(test_state_list_len_zero);
 
 	yoyo_verbose = -1;
-	failures += test_state_list_new_first_error();
-	failures += test_state_list_new_second_error();
+	failures += run_test(test_state_list_new_first_error);
+	failures += run_test(test_state_list_new_second_error);
 
-	return failures ? 1 : 0;
+	return failures_to_status("test_state_list_new", failures);
 }

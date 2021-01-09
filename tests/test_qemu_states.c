@@ -13,20 +13,21 @@
 
 const unsigned hang_check_interval = 60;
 const char *fakeroot = NULL;
-const pid_t childpid = 174993;
+const pid_t childpid = 1754993;
+size_t max_hangs = 5;
 
 const size_t qemu_state_0_len = 10;
 struct thread_state qemu_state_0[] = {
-	{.pid = 174993,.state = 'S',.utime = 42833,.stime = 125400 },
-	{.pid = 174994,.state = 'S',.utime = 12376,.stime = 1809 },
-	{.pid = 175000,.state = 'S',.utime = 4306567,.stime = 219019 },
-	{.pid = 175001,.state = 'S',.utime = 4197739,.stime = 220016 },
-	{.pid = 175002,.state = 'S',.utime = 4492751,.stime = 220595 },
-	{.pid = 175003,.state = 'S',.utime = 4194664,.stime = 222319 },
-	{.pid = 175004,.state = 'S',.utime = 4197278,.stime = 222898 },
-	{.pid = 175005,.state = 'S',.utime = 4213710,.stime = 222763 },
-	{.pid = 175006,.state = 'S',.utime = 4178210,.stime = 226003 },
-	{.pid = 175007,.state = 'S',.utime = 4091083,.stime = 221455 }
+	{.pid = 1754993,.state = 'S',.utime = 42825,.stime = 125398 },
+	{.pid = 1754994,.state = 'S',.utime = 12376,.stime = 1809 },
+	{.pid = 1755000,.state = 'S',.utime = 4306567,.stime = 219019 },
+	{.pid = 1755001,.state = 'S',.utime = 4197739,.stime = 220016 },
+	{.pid = 1755002,.state = 'S',.utime = 4492748,.stime = 220595 },
+	{.pid = 1755003,.state = 'S',.utime = 4194648,.stime = 222319 },
+	{.pid = 1755004,.state = 'S',.utime = 4197278,.stime = 222898 },
+	{.pid = 1755005,.state = 'S',.utime = 4213710,.stime = 222763 },
+	{.pid = 1755006,.state = 'S',.utime = 4178210,.stime = 226003 },
+	{.pid = 1755007,.state = 'S',.utime = 4091083,.stime = 221455 }
 };
 
 struct state_list qemu_state_list_0 = {
@@ -36,16 +37,16 @@ struct state_list qemu_state_list_0 = {
 
 const size_t qemu_state_1_len = 10;
 struct thread_state qemu_state_1[] = {
-	{.pid = 174993,.state = 'S',.utime = 42835,.stime = 125400 },
-	{.pid = 174994,.state = 'S',.utime = 12376,.stime = 1809 },
-	{.pid = 175000,.state = 'S',.utime = 4306567,.stime = 219019 },
-	{.pid = 175001,.state = 'S',.utime = 4197739,.stime = 220016 },
-	{.pid = 175002,.state = 'S',.utime = 4492752,.stime = 220595 },
-	{.pid = 175003,.state = 'S',.utime = 4194668,.stime = 222319 },
-	{.pid = 175004,.state = 'S',.utime = 4197278,.stime = 222898 },
-	{.pid = 175005,.state = 'S',.utime = 4213710,.stime = 222763 },
-	{.pid = 175006,.state = 'S',.utime = 4178210,.stime = 226003 },
-	{.pid = 175007,.state = 'S',.utime = 4091083,.stime = 221455 }
+	{.pid = 1754993,.state = 'S',.utime = 42825,.stime = 125400 },
+	{.pid = 1754994,.state = 'S',.utime = 12376,.stime = 1809 },
+	{.pid = 1755000,.state = 'S',.utime = 4306567,.stime = 219019 },
+	{.pid = 1755001,.state = 'S',.utime = 4197739,.stime = 220016 },
+	{.pid = 1755002,.state = 'S',.utime = 4492749,.stime = 220595 },
+	{.pid = 1755003,.state = 'S',.utime = 4194651,.stime = 222319 },
+	{.pid = 1755004,.state = 'S',.utime = 4197278,.stime = 222898 },
+	{.pid = 1755005,.state = 'S',.utime = 4213710,.stime = 222763 },
+	{.pid = 1755006,.state = 'S',.utime = 4178210,.stime = 226003 },
+	{.pid = 1755007,.state = 'S',.utime = 4091083,.stime = 221455 }
 };
 
 struct state_list qemu_state_list_1 = {
@@ -55,16 +56,16 @@ struct state_list qemu_state_list_1 = {
 
 const size_t qemu_state_2_len = 10;
 struct thread_state qemu_state_2[] = {
-	{.pid = 174993,.state = 'S',.utime = 42837,.stime = 125400 },
-	{.pid = 174994,.state = 'S',.utime = 12376,.stime = 1809 },
-	{.pid = 175000,.state = 'S',.utime = 4306567,.stime = 219019 },
-	{.pid = 175001,.state = 'S',.utime = 4197739,.stime = 220016 },
-	{.pid = 175002,.state = 'S',.utime = 4492753,.stime = 220595 },
-	{.pid = 175003,.state = 'S',.utime = 4194671,.stime = 222319 },
-	{.pid = 175004,.state = 'S',.utime = 4197278,.stime = 222898 },
-	{.pid = 175005,.state = 'S',.utime = 4213710,.stime = 222763 },
-	{.pid = 175006,.state = 'S',.utime = 4178210,.stime = 226003 },
-	{.pid = 175007,.state = 'S',.utime = 4091084,.stime = 221455 }
+	{.pid = 1754993,.state = 'S',.utime = 42827,.stime = 125400 },
+	{.pid = 1754994,.state = 'S',.utime = 12376,.stime = 1809 },
+	{.pid = 1755000,.state = 'S',.utime = 4306567,.stime = 219019 },
+	{.pid = 1755001,.state = 'S',.utime = 4197739,.stime = 220016 },
+	{.pid = 1755002,.state = 'S',.utime = 4492749,.stime = 220595 },
+	{.pid = 1755003,.state = 'S',.utime = 4194654,.stime = 222319 },
+	{.pid = 1755004,.state = 'S',.utime = 4197278,.stime = 222898 },
+	{.pid = 1755005,.state = 'S',.utime = 4213710,.stime = 222763 },
+	{.pid = 1755006,.state = 'S',.utime = 4178210,.stime = 226003 },
+	{.pid = 1755007,.state = 'S',.utime = 4091083,.stime = 221455 }
 };
 
 struct state_list qemu_state_list_2 = {
@@ -74,16 +75,16 @@ struct state_list qemu_state_list_2 = {
 
 const size_t qemu_state_3_len = 10;
 struct thread_state qemu_state_3[] = {
-	{.pid = 174993,.state = 'S',.utime = 42839,.stime = 125400 },
-	{.pid = 174994,.state = 'S',.utime = 12376,.stime = 1809 },
-	{.pid = 175000,.state = 'S',.utime = 4306567,.stime = 219019 },
-	{.pid = 175001,.state = 'S',.utime = 4197739,.stime = 220016 },
-	{.pid = 175002,.state = 'S',.utime = 4492753,.stime = 220595 },
-	{.pid = 175003,.state = 'S',.utime = 4194674,.stime = 222319 },
-	{.pid = 175004,.state = 'S',.utime = 4197278,.stime = 222898 },
-	{.pid = 175005,.state = 'S',.utime = 4213710,.stime = 222763 },
-	{.pid = 175006,.state = 'S',.utime = 4178210,.stime = 226003 },
-	{.pid = 175007,.state = 'S',.utime = 4091084,.stime = 221455 }
+	{.pid = 1754993,.state = 'S',.utime = 42829,.stime = 125400 },
+	{.pid = 1754994,.state = 'S',.utime = 12376,.stime = 1809 },
+	{.pid = 1755000,.state = 'S',.utime = 4306567,.stime = 219019 },
+	{.pid = 1755001,.state = 'S',.utime = 4197739,.stime = 220016 },
+	{.pid = 1755002,.state = 'S',.utime = 4492750,.stime = 220595 },
+	{.pid = 1755003,.state = 'S',.utime = 4194658,.stime = 222319 },
+	{.pid = 1755004,.state = 'S',.utime = 4197278,.stime = 222898 },
+	{.pid = 1755005,.state = 'S',.utime = 4213710,.stime = 222763 },
+	{.pid = 1755006,.state = 'S',.utime = 4178210,.stime = 226003 },
+	{.pid = 1755007,.state = 'S',.utime = 4091083,.stime = 221455 }
 };
 
 struct state_list qemu_state_list_3 = {
@@ -93,16 +94,16 @@ struct state_list qemu_state_list_3 = {
 
 const size_t qemu_state_4_len = 10;
 struct thread_state qemu_state_4[] = {
-	{.pid = 174993,.state = 'S',.utime = 42841,.stime = 125400 },
-	{.pid = 174994,.state = 'S',.utime = 12376,.stime = 1809 },
-	{.pid = 175000,.state = 'S',.utime = 4306567,.stime = 219019 },
-	{.pid = 175001,.state = 'S',.utime = 4197739,.stime = 220016 },
-	{.pid = 175002,.state = 'S',.utime = 4492754,.stime = 220595 },
-	{.pid = 175003,.state = 'S',.utime = 4194678,.stime = 222319 },
-	{.pid = 175004,.state = 'S',.utime = 4197278,.stime = 222898 },
-	{.pid = 175005,.state = 'S',.utime = 4213710,.stime = 222763 },
-	{.pid = 175006,.state = 'S',.utime = 4178210,.stime = 226003 },
-	{.pid = 175007,.state = 'S',.utime = 4091084,.stime = 221455 }
+	{.pid = 1754993,.state = 'S',.utime = 42831,.stime = 125400 },
+	{.pid = 1754994,.state = 'S',.utime = 12376,.stime = 1809 },
+	{.pid = 1755000,.state = 'S',.utime = 4306567,.stime = 219019 },
+	{.pid = 1755001,.state = 'S',.utime = 4197739,.stime = 220016 },
+	{.pid = 1755002,.state = 'S',.utime = 4492751,.stime = 220595 },
+	{.pid = 1755003,.state = 'S',.utime = 4194661,.stime = 222319 },
+	{.pid = 1755004,.state = 'S',.utime = 4197278,.stime = 222898 },
+	{.pid = 1755005,.state = 'S',.utime = 4213710,.stime = 222763 },
+	{.pid = 1755006,.state = 'S',.utime = 4178210,.stime = 226003 },
+	{.pid = 1755007,.state = 'S',.utime = 4091083,.stime = 221455 }
 };
 
 struct state_list qemu_state_list_4 = {
@@ -110,13 +111,53 @@ struct state_list qemu_state_list_4 = {
 	.len = qemu_state_4_len
 };
 
-const size_t hung_qemu_frames_len = 5;
+const size_t qemu_state_5_len = 10;
+struct thread_state qemu_state_5[] = {
+	{.pid = 1754993,.state = 'S',.utime = 42833,.stime = 125400 },
+	{.pid = 1754994,.state = 'S',.utime = 12376,.stime = 1809 },
+	{.pid = 1755000,.state = 'S',.utime = 4306567,.stime = 219019 },
+	{.pid = 1755001,.state = 'S',.utime = 4197739,.stime = 220016 },
+	{.pid = 1755002,.state = 'S',.utime = 4492751,.stime = 220595 },
+	{.pid = 1755003,.state = 'S',.utime = 4194664,.stime = 222319 },
+	{.pid = 1755004,.state = 'S',.utime = 4197278,.stime = 222898 },
+	{.pid = 1755005,.state = 'S',.utime = 4213710,.stime = 222763 },
+	{.pid = 1755006,.state = 'S',.utime = 4178210,.stime = 226003 },
+	{.pid = 1755007,.state = 'S',.utime = 4091083,.stime = 221455 }
+};
+
+struct state_list qemu_state_list_5 = {
+	.states = qemu_state_5,
+	.len = qemu_state_5_len
+};
+
+const size_t qemu_state_6_len = 10;
+struct thread_state qemu_state_6[] = {
+	{.pid = 1754993,.state = 'S',.utime = 42835,.stime = 125400 },
+	{.pid = 1754994,.state = 'S',.utime = 12376,.stime = 1809 },
+	{.pid = 1755000,.state = 'S',.utime = 4306567,.stime = 219019 },
+	{.pid = 1755001,.state = 'S',.utime = 4197739,.stime = 220016 },
+	{.pid = 1755002,.state = 'S',.utime = 4492752,.stime = 220595 },
+	{.pid = 1755003,.state = 'S',.utime = 4194668,.stime = 222319 },
+	{.pid = 1755004,.state = 'S',.utime = 4197278,.stime = 222898 },
+	{.pid = 1755005,.state = 'S',.utime = 4213710,.stime = 222763 },
+	{.pid = 1755006,.state = 'S',.utime = 4178210,.stime = 226003 },
+	{.pid = 1755007,.state = 'S',.utime = 4091083,.stime = 221455 }
+};
+
+struct state_list qemu_state_list_6 = {
+	.states = qemu_state_6,
+	.len = qemu_state_6_len
+};
+
+const size_t hung_qemu_frames_len = 7;
 struct state_list *hung_qemu_frames[] = {
-	&qemu_state_list_0,
-	&qemu_state_list_1,
-	&qemu_state_list_2,
-	&qemu_state_list_3,
-	&qemu_state_list_4
+	&qemu_state_list_0,	/* first never looks hung */
+	&qemu_state_list_1,	/* looks hung 1 */
+	&qemu_state_list_2,	/* looks hung 2 */
+	&qemu_state_list_3,	/* looks hung 3 */
+	&qemu_state_list_4,	/* looks hung 4 */
+	&qemu_state_list_5,	/* looks hung 5 == 5 (max_hangs) */
+	&qemu_state_list_6,	/* is hung 6 > 5 (exceeds max_hangs!) */
 };
 
 struct monitor_child_context {
@@ -134,7 +175,6 @@ struct monitor_child_context *ctx = NULL;
 void copy_templates(struct monitor_child_context *dup,
 		    struct state_list **templates, size_t templates_len);
 void free_templates(struct monitor_child_context *dup);
-size_t max_hangs_for_len(size_t len);
 
 /* Test Functions */
 unsigned test_qemu_hung(void)
@@ -148,8 +188,6 @@ unsigned test_qemu_hung(void)
 
 	copy_templates(&mctx, hung_qemu_frames, hung_qemu_frames_len);
 	ctx = &mctx;
-
-	unsigned max_hangs = max_hangs_for_len(ctx->templates_len);
 
 	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
 			       fakeroot);
@@ -174,10 +212,8 @@ unsigned test_qemu_active_state_4(void)
 	mctx.failures = &failures;
 
 	copy_templates(&mctx, hung_qemu_frames, hung_qemu_frames_len);
-	mctx.templates[4]->states[9].utime += 10;
+	mctx.templates[hung_qemu_frames_len - 1]->states[9].utime += 10;
 	ctx = &mctx;
-
-	unsigned max_hangs = max_hangs_for_len(ctx->templates_len);
 
 	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
 			       fakeroot);
@@ -247,20 +283,6 @@ void free_templates(struct monitor_child_context *dup)
 	dup->templates = NULL;
 	dup->templates_len = 0;
 	dup = NULL;
-}
-
-size_t max_hangs_for_len(size_t len)
-{
-	if (len < 2) {
-		fprintf(stderr, "%s:%s:%d ERROR! len: %zu\n",
-			__FILE__, __func__, __LINE__, len);
-		fprintf(stderr, "The first check is _never_ considered hung\n");
-		fprintf(stderr, " and there must be a 'next' to compare to.\n");
-		fprintf(stderr, "Thus the max_hangs for any size is the\n");
-		fprintf(stderr, " length minus the first AND last.\n");
-		exit(EXIT_FAILURE);
-	}
-	return len - 2;
 }
 
 struct state_list empty_state_list = {.states = NULL,.len = 0 };

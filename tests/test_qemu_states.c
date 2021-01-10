@@ -162,8 +162,8 @@ struct state_list *hung_qemu_frames[] = {
 
 struct monitor_child_context {
 	unsigned *failures;
-	struct state_list **templates;
-	size_t templates_len;
+	struct state_list **state_lists;
+	size_t state_lists_len;
 	unsigned sleep_count;
 	size_t current_state;
 	unsigned looks_hung;
@@ -172,33 +172,27 @@ struct monitor_child_context {
 struct monitor_child_context *ctx = NULL;
 
 /* some function prototypes */
-void copy_templates(struct monitor_child_context *dup,
-		    struct state_list **templates, size_t templates_len);
-void free_templates(struct monitor_child_context *dup);
+void copy_qemu_states_to_global_context(unsigned *failures);
+void free_global_context(void);
 
 /* Test Functions */
 unsigned test_qemu_hung(void)
 {
 	unsigned failures = 0;
 
-	struct monitor_child_context mctx;
-	memset(&mctx, 0x00, sizeof(struct monitor_child_context));
-
-	mctx.failures = &failures;
-
-	copy_templates(&mctx, hung_qemu_frames, hung_qemu_frames_len);
-	ctx = &mctx;
+	copy_qemu_states_to_global_context(&failures);
 
 	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
 			       fakeroot);
 
+	/* fail if it does _not_ look hung */
 	if (!ctx->looks_hung) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected non-zero\n",
 			__FILE__, __func__, __LINE__, "ctx->looks_hung");
 		++failures;
 	}
 
-	free_templates(ctx);
+	free_global_context();
 	return failures;
 }
 
@@ -206,18 +200,16 @@ unsigned test_qemu_active_state_4(void)
 {
 	unsigned failures = 0;
 
-	struct monitor_child_context mctx;
-	memset(&mctx, 0x00, sizeof(struct monitor_child_context));
+	copy_qemu_states_to_global_context(&failures);
 
-	mctx.failures = &failures;
-
-	copy_templates(&mctx, hung_qemu_frames, hung_qemu_frames_len);
-	mctx.templates[hung_qemu_frames_len - 1]->states[9].utime += 10;
-	ctx = &mctx;
+	/* make the last state active enough to not look hung */
+	size_t last = ctx->state_lists_len - 1;
+	ctx->state_lists[last]->states[9].utime += 10;
 
 	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
 			       fakeroot);
 
+	/* fail if it _does_ look hung */
 	if (ctx->looks_hung) {
 		fprintf(stderr, "%s:%s:%d FAIL: %s expected 0 but was %u\n",
 			__FILE__, __func__, __LINE__, "ctx->looks_hung",
@@ -225,7 +217,7 @@ unsigned test_qemu_active_state_4(void)
 		++failures;
 	}
 
-	free_templates(ctx);
+	free_global_context();
 	return failures;
 }
 
@@ -245,44 +237,53 @@ unsigned test_qemu_active_state_4(void)
 	} \
 } while (0)
 
-void copy_templates(struct monitor_child_context *dup,
-		    struct state_list **templates, size_t templates_len)
+void copy_qemu_states_to_global_context(unsigned *failures)
 {
-	dup->templates_len = templates_len;
-	size_t nmemb = dup->templates_len;
-	size_t size = sizeof(struct state_list *);
-	Calloc_or_die(&dup->templates, nmemb, size);
+	size_t nmemb = 1;
+	size_t size = sizeof(struct monitor_child_context);
+	Calloc_or_die(&ctx, nmemb, size);
+	ctx->failures = failures;
 
-	for (size_t i = 0; i < dup->templates_len; ++i) {
+	ctx->state_lists_len = hung_qemu_frames_len;
+	nmemb = ctx->state_lists_len;
+	size = sizeof(struct state_list *);
+	Calloc_or_die(&ctx->state_lists, nmemb, size);
+
+	for (size_t i = 0; i < ctx->state_lists_len; ++i) {
 		nmemb = 1;
 		size = sizeof(struct state_list);
-		Calloc_or_die(&(dup->templates[i]), nmemb, size);
+		Calloc_or_die(&(ctx->state_lists[i]), nmemb, size);
 
-		dup->templates[i]->len = templates[i]->len;
-		nmemb = dup->templates[i]->len;
+		struct state_list *sl_i = hung_qemu_frames[i];
+
+		ctx->state_lists[i]->len = sl_i->len;
+		nmemb = ctx->state_lists[i]->len;
 		size = sizeof(struct thread_state);
-		Calloc_or_die(&dup->templates[i]->states, nmemb, size);
+		Calloc_or_die(&ctx->state_lists[i]->states, nmemb, size);
 
-		for (size_t j = 0; j < dup->templates[i]->len; ++j) {
-			dup->templates[i]->states[j] = templates[i]->states[j];
+		for (size_t j = 0; j < ctx->state_lists[i]->len; ++j) {
+			ctx->state_lists[i]->states[j] = sl_i->states[j];
 		}
 	}
 }
 
-void free_templates(struct monitor_child_context *dup)
+void free_global_context(void)
 {
-	for (size_t i = 0; i < dup->templates_len; ++i) {
-		free(dup->templates[i]->states);
-		dup->templates[i]->states = NULL;
-		dup->templates[i]->len = 0;
+	for (size_t i = 0; i < ctx->state_lists_len; ++i) {
+		free(ctx->state_lists[i]->states);
+		ctx->state_lists[i]->states = NULL;
+		ctx->state_lists[i]->len = 0;
 
-		free(dup->templates[i]);
-		dup->templates[i] = NULL;
+		free(ctx->state_lists[i]);
+		ctx->state_lists[i] = NULL;
 	}
-	free(dup->templates);
-	dup->templates = NULL;
-	dup->templates_len = 0;
-	dup = NULL;
+
+	free(ctx->state_lists);
+	ctx->state_lists = NULL;
+	ctx->state_lists_len = 0;
+
+	free(ctx);
+	ctx = NULL;
 }
 
 struct state_list empty_state_list = {.states = NULL,.len = 0 };
@@ -292,8 +293,17 @@ struct state_list *faux_get_states(long pid, const char *fakeroot)
 	(void)pid;
 	(void)fakeroot;
 
-	return (ctx->current_state < ctx->templates_len)
-	    ? ctx->templates[ctx->current_state]
+	if (ctx->current_state > ctx->state_lists_len) {
+		/* Why is the code trying to fetch the states more than once
+		 * after the end of known states? Something is broken. */
+		++(*ctx->failures);
+		fprintf(stderr, "%s:%s:%d asking for state[%zu] (len=%zu)\n",
+			__FILE__, __func__, __LINE__, ctx->current_state,
+			ctx->state_lists_len);
+	}
+
+	return (ctx->current_state < ctx->state_lists_len)
+	    ? ctx->state_lists[ctx->current_state]
 	    : &empty_state_list;
 }
 
@@ -306,12 +316,13 @@ int faux_kill(pid_t pid, int sig)
 {
 	(void)pid;
 
-	/* record data about what it is doing */
-	if (sig != 0) {
+	/* sig of 0 is only checking for process running */
+	/* sig of TERM or KILL indicates that it looks hung */
+	if (sig == SIGTERM || sig == SIGKILL) {
 		++(ctx->looks_hung);
 	}
 
-	return ctx->current_state < ctx->templates_len ? 0 : -1;
+	return ctx->current_state < ctx->state_lists_len ? 0 : -1;
 }
 
 unsigned int faux_sleep(unsigned int seconds)
@@ -323,7 +334,7 @@ unsigned int faux_sleep(unsigned int seconds)
 		++ctx->sleep_count;
 	}
 
-	size_t threshold = ctx->templates_len;
+	size_t threshold = ctx->state_lists_len;
 	if (ctx->current_state > threshold) {
 		fprintf(stderr, "%s:%s:%d sleep(%u) threshold %zu exceeded\n",
 			__FILE__, __func__, __LINE__, seconds, threshold);

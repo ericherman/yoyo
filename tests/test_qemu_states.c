@@ -222,44 +222,46 @@ unsigned test_qemu_active_state_4(void)
 }
 
 /* Test Fixture Functions */
+void *calloc_or_die(const char *file, const char *func, int line, size_t nmemb,
+		    size_t size)
+{
+	void *ptr = calloc(nmemb, size);
+	if (!ptr) {
+		size_t total = (nmemb * size);
+		fprintf(stderr, "%s:%s:%d could not calloc(%zu, %zu)"
+			" (%zu bytes)?\n",
+			file, func, line, nmemb, size, total);
+		exit(EXIT_FAILURE);
+	}
+	return ptr;
+}
 
-#define Calloc_or_die(pptr, nmemb, size) do { \
-	size_t _cod_nmeb = (nmemb); \
-	size_t _cod_size = (size); \
-	void *_cod_ptr = *(pptr) = calloc(_cod_nmeb, _cod_size); \
-	if (!_cod_ptr) { \
-		size_t _cod_tot = (_cod_nmeb * _cod_size); \
-		fprintf(stderr, "%s:%s:%d could not calloc(%zu, %zu)" \
-				" (%zu bytes) for %s?\n", \
-			__FILE__, __func__, __LINE__, _cod_nmeb, _cod_size, \
-				_cod_tot, #pptr); \
-		exit(1); \
-	} \
-} while (0)
+#define Calloc_or_die(nmemb, size) \
+	calloc_or_die(__FILE__, __func__, __LINE__, nmemb, size)
 
 void copy_qemu_states_to_global_context(unsigned *failures)
 {
 	size_t nmemb = 1;
 	size_t size = sizeof(struct monitor_child_context);
-	Calloc_or_die(&ctx, nmemb, size);
+	ctx = Calloc_or_die(nmemb, size);
 	ctx->failures = failures;
 
 	ctx->state_lists_len = hung_qemu_frames_len;
 	nmemb = ctx->state_lists_len;
 	size = sizeof(struct state_list *);
-	Calloc_or_die(&ctx->state_lists, nmemb, size);
+	ctx->state_lists = Calloc_or_die(nmemb, size);
 
 	for (size_t i = 0; i < ctx->state_lists_len; ++i) {
 		nmemb = 1;
 		size = sizeof(struct state_list);
-		Calloc_or_die(&(ctx->state_lists[i]), nmemb, size);
+		ctx->state_lists[i] = Calloc_or_die(nmemb, size);
 
 		struct state_list *sl_i = hung_qemu_frames[i];
 
 		ctx->state_lists[i]->len = sl_i->len;
 		nmemb = ctx->state_lists[i]->len;
 		size = sizeof(struct thread_state);
-		Calloc_or_die(&ctx->state_lists[i]->states, nmemb, size);
+		ctx->state_lists[i]->states = Calloc_or_die(nmemb, size);
 
 		for (size_t j = 0; j < ctx->state_lists[i]->len; ++j) {
 			ctx->state_lists[i]->states[j] = sl_i->states[j];

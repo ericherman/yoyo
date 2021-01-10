@@ -23,18 +23,11 @@ unsigned test_previous_is_null_next_sleeping(void)
 	int hung = process_looks_hung(&next, previous, current);
 
 	unsigned failures = 0;
-	if (hung) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %d but was %d\n",
-			__FILE__, __func__, __LINE__, "hung", 0, hung);
-		++failures;
-	}
 
-	if (next != current) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %p but was %p\n",
-			__FILE__, __func__, __LINE__, "next", (void *)current,
-			(void *)next);
-		++failures;
-	}
+	failures += Check(hung == 0, "expected 0 but was %d", hung);
+
+	failures +=
+	    Check(next == current, "expected %p but was %p", current, next);
 
 	return failures;
 }
@@ -62,18 +55,10 @@ unsigned test_next_not_sleeping(void)
 	int hung = process_looks_hung(&next, previous, current);
 
 	unsigned failures = 0;
-	if (hung) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %d but was %d\n",
-			__FILE__, __func__, __LINE__, "hung", 0, hung);
-		++failures;
-	}
 
-	if (next != NULL) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %p but was %p\n",
-			__FILE__, __func__, __LINE__, "next", NULL,
-			(void *)next);
-		++failures;
-	}
+	failures += Check(hung == 0, "expected 0 but was %d", hung);
+
+	failures += Check(next == NULL, "expected NULL but was %p", next);
 
 	return failures;
 }
@@ -102,18 +87,11 @@ unsigned test_all_sleeping_different_length(void)
 	int hung = process_looks_hung(&next, previous, current);
 
 	unsigned failures = 0;
-	if (hung) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %d but was %d\n",
-			__FILE__, __func__, __LINE__, "hung", 0, hung);
-		++failures;
-	}
 
-	if (next != current) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %p but was %p\n",
-			__FILE__, __func__, __LINE__, "next", (void *)current,
-			(void *)next);
-		++failures;
-	}
+	failures += Check(hung == 0, "expected 0 but was %d", hung);
+
+	failures +=
+	    Check(next == current, "expected %p but was %p", current, next);
 
 	return failures;
 }
@@ -141,23 +119,16 @@ unsigned test_times_increment_by_only_one(void)
 	int hung = process_looks_hung(&next, previous, current);
 
 	unsigned failures = 0;
-	if (!hung) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %d but was %d\n",
-			__FILE__, __func__, __LINE__, "!hung", 0, !hung);
-		++failures;
-	}
 
-	if (next != current) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %p but was %p\n",
-			__FILE__, __func__, __LINE__, "next", (void *)current,
-			(void *)next);
-		++failures;
-	}
+	failures += Check(hung != 0, "expected non-zero");
+
+	failures +=
+	    Check(next == current, "expected %p but was %p", current, next);
 
 	return failures;
 }
 
-unsigned test_sleeping_times_increment_by_more_than_one(void)
+unsigned test_sleeping_times_increment_by_17(void)
 {
 	struct thread_state three_sleeping[3] = {
 		{.pid = 10007,.state = 'S',.utime = 3217,.stime = 3259 },
@@ -180,18 +151,10 @@ unsigned test_sleeping_times_increment_by_more_than_one(void)
 	int hung = process_looks_hung(&next, previous, current);
 
 	unsigned failures = 0;
-	if (hung) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %d but was %d\n",
-			__FILE__, __func__, __LINE__, "hung", 0, hung);
-		++failures;
-	}
 
-	if (next) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %p but was %p\n",
-			__FILE__, __func__, __LINE__, "next", NULL,
-			(void *)next);
-		++failures;
-	}
+	failures += Check(hung == 0, "expected 0 but was %d", hung);
+
+	failures += Check(next == NULL, "expected NULL but was %p", next);
 
 	return failures;
 }
@@ -204,7 +167,7 @@ int main(void)
 	failures += run_test(test_next_not_sleeping);
 	failures += run_test(test_all_sleeping_different_length);
 	failures += run_test(test_times_increment_by_only_one);
-	failures += run_test(test_sleeping_times_increment_by_more_than_one);
+	failures += run_test(test_sleeping_times_increment_by_17);
 
 	return failures_to_status("test_process_looks_hung", failures);
 }

@@ -1,4 +1,6 @@
 #include <limits.h>
+#include <stdarg.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -29,4 +31,25 @@ int failures_to_status(const char *name, unsigned failures)
 	}
 
 	return exit_code;
+}
+
+unsigned check_expression(const char *file, int line, const char *func,
+			  int expression, const char *expr_str,
+			  const char *format, ...)
+{
+	if (expression) {
+		return 0;
+	}
+
+	fflush(stdout);
+	fprintf(stderr, "\n%s:%d %s() (%s) FAIL ", file, line, func, expr_str);
+
+	va_list args;
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+
+	fprintf(stderr, "\n");
+
+	return 1;
 }

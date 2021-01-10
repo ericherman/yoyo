@@ -23,19 +23,10 @@ unsigned test_wait_status_0(void)
 	unsigned failures = 0;
 
 	const char *expect1 = "10007";
-	if (!strstr(buf, expect1)) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s no '%s' in: %s\n",
-			__FILE__, __func__, __LINE__, "pid", expect1, buf);
-		++failures;
-	}
+	failures += Check(strstr(buf, expect1), "no '%s' in: %s", expect1, buf);
 
 	const char *expect2 = "exit code: 0";
-	if (!strstr(buf, expect2)) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s no '%s' in: %s\n",
-			__FILE__, __func__, __LINE__, "exit code",
-			expect2, buf);
-		++failures;
-	}
+	failures += Check(strstr(buf, expect2), "no '%s' in: %s", expect2, buf);
 
 	return failures;
 }
@@ -54,12 +45,10 @@ unsigned test_wait_status_1(void)
 	exit_reason_to_str(&reason, buf, 250);
 
 	unsigned failures = 0;
+
 	const char *expect = "terminated by a signal 1";
-	if (!strstr(buf, expect)) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s no '%s' in: %s\n",
-			__FILE__, __func__, __LINE__, "expect", expect, buf);
-		++failures;
-	}
+	failures += Check(strstr(buf, expect), "no '%s' in: %s", expect, buf);
+
 	return failures;
 }
 
@@ -77,12 +66,10 @@ unsigned test_wait_status_2943(void)
 	exit_reason_to_str(&reason, buf, 250);
 
 	unsigned failures = 0;
+
 	const char *expect = "stopped";
-	if (!strstr(buf, expect)) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s no '%s' in: %s\n",
-			__FILE__, __func__, __LINE__, "expect", expect, buf);
-		++failures;
-	}
+	failures += Check(strstr(buf, expect), "no '%s' in: %s", expect, buf);
+
 	return failures;
 }
 
@@ -100,12 +87,10 @@ unsigned test_wait_status_ffff(void)
 	exit_reason_to_str(&reason, buf, 250);
 
 	unsigned failures = 0;
+
 	const char *expect = "resumed";
-	if (!strstr(buf, expect)) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s no '%s' in: %s\n",
-			__FILE__, __func__, __LINE__, "expect", expect, buf);
-		++failures;
-	}
+	failures += Check(strstr(buf, expect), "no '%s' in: %s", expect, buf);
+
 	return failures;
 }
 

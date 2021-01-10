@@ -506,7 +506,7 @@ tidy:
 		-T state_list \
 		-T thread_state \
 		-T yoyo_options \
-		src/*.c src/*.h tests/*.c
+		src/*.c src/*.h tests/*.c tests/*.h
 
 clean:
 	rm -rvf build debug `cat .gitignore | sed -e 's/#.*//'`

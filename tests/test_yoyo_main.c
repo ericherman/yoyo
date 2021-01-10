@@ -73,45 +73,24 @@ unsigned test_fake_fork(void)
 	yoyo_stdout = dev_null;
 	yoyo_stderr = dev_null;
 
-	if (!strstr(buf, child_argv0)) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s no '%s' in: %s\n",
-			__FILE__, __func__, __LINE__, "child_argv0",
-			child_argv0, buf);
-		++failures;
-	}
-	if (!strstr(buf, child_argv1)) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s no '%s' in: %s\n",
-			__FILE__, __func__, __LINE__, "child_argv0",
-			child_argv0, buf);
-		++failures;
-	}
+	failures +=
+	    Check(strstr(buf, child_argv0), "expected '%s' in: %s", child_argv0,
+		  buf);
+	failures +=
+	    Check(strstr(buf, child_argv1), "expected '%s' in: %s", child_argv1,
+		  buf);
 
-	if (fork_count != 1) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "fork_count", 1U,
-			fork_count);
-		++failures;
-	}
+	failures += Check(fork_count == 1, "expected 1 but was %u", fork_count);
 
-	if (execv_count != 1) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "execv_count", 1U,
-			execv_count);
-		++failures;
-	}
+	failures +=
+	    Check(execv_count == 1, "expected 1 but was %u", execv_count);
 
-	if (!stash_pathname || strcmp(stash_pathname, child_argv0) != 0) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %s but was %s\n",
-			__FILE__, __func__, __LINE__, "pathname", child_argv0,
-			stash_pathname);
-		++failures;
-	}
+	failures += Check(stash_pathname
+			  && strcmp(stash_pathname, child_argv0) == 0,
+			  "expected %s but was %s", child_argv0,
+			  stash_pathname);
 
-	if (exit_val != 0) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %d but was %d\n",
-			__FILE__, __func__, __LINE__, "exit_val", 0, exit_val);
-		++failures;
-	}
+	failures += Check(exit_val == 0, "expected 0 but was %d", exit_val);
 
 	return failures;
 }
@@ -148,26 +127,14 @@ unsigned test_help(void)
 	yoyo_stdout = dev_null;
 	yoyo_stderr = dev_null;
 
-	if (!strstr(buf, "max-hangs")) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s no '%s' in: %s\n",
-			__FILE__, __func__, __LINE__, "help", "max-hangs", buf);
-		++failures;
-	}
+	const char *expect = "max-hangs";
+	failures +=
+	    Check(strstr(buf, expect), "expected '%s' in: %s", expect, buf);
 
-	if (fork_count) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "fork_count", 0U,
-			fork_count);
-		++failures;
-	}
+	failures += Check(fork_count == 0, "expected 0 but was %u", fork_count);
 
-	if (execv_count) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "execv_count", 0U,
-			execv_count);
-		++failures;
-	}
-
+	failures +=
+	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
 	return failures;
 }
 
@@ -204,25 +171,13 @@ unsigned test_version(void)
 	yoyo_stderr = dev_null;
 
 	const char *expect = "0.0.1";
-	if (!strstr(buf, expect)) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s no '%s' in: %s\n",
-			__FILE__, __func__, __LINE__, "version", expect, buf);
-		++failures;
-	}
+	failures +=
+	    Check(strstr(buf, expect), "expected '%s' in: %s", expect, buf);
 
-	if (fork_count) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "fork_count", 0U,
-			fork_count);
-		++failures;
-	}
+	failures += Check(fork_count == 0, "expected 0 but was %u", fork_count);
 
-	if (execv_count) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "execv_count", 0U,
-			execv_count);
-		++failures;
-	}
+	failures +=
+	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
 
 	return failures;
 }
@@ -250,32 +205,16 @@ unsigned test_failing_fork(void)
 
 	int exit_val = yoyo_main(argc, argv);
 
-	if (fork_count != 1) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "fork_count", 1U,
-			fork_count);
-		++failures;
-	}
+	failures += Check(fork_count == 1, "expected 1 but was %u", fork_count);
 
-	if (execv_count) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected 0 but was %u\n",
-			__FILE__, __func__, __LINE__, "execv_count",
-			execv_count);
-		++failures;
-	}
+	failures +=
+	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
 
-	if (stash_pathname) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %s but was %s\n",
-			__FILE__, __func__, __LINE__, "pathname", "NULL",
-			stash_pathname);
-		++failures;
-	}
+	failures +=
+	    Check(stash_pathname == NULL, "expected NULL but was %d",
+		  stash_pathname);
 
-	if (exit_val == 0) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected non-zero\n",
-			__FILE__, __func__, __LINE__, "exit_val");
-		++failures;
-	}
+	failures += Check(exit_val != 0, "expected non-zero");
 
 	return failures;
 }
@@ -300,32 +239,14 @@ unsigned test_do_not_even_try_if_no_child(void)
 
 	int exit_val = yoyo_main(argc, argv);
 
-	if (fork_count != 0) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "fork_count", 0U,
-			fork_count);
-		++failures;
-	}
+	failures += Check(fork_count == 0, "expected 0 but was %u", fork_count);
+	failures +=
+	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
+	failures +=
+	    Check(stash_pathname == NULL, "expected NULL but was %d",
+		  stash_pathname);
 
-	if (execv_count != 0) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %u but was %u\n",
-			__FILE__, __func__, __LINE__, "execv_count", 0U,
-			execv_count);
-		++failures;
-	}
-
-	if (stash_pathname) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %s but was %s\n",
-			__FILE__, __func__, __LINE__, "pathname", "NULL",
-			stash_pathname);
-		++failures;
-	}
-
-	if (exit_val == 0) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected non-zero\n",
-			__FILE__, __func__, __LINE__, "exit_val");
-		++failures;
-	}
+	failures += Check(exit_val != 0, "expected non-zero");
 
 	return failures;
 }

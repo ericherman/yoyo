@@ -186,11 +186,7 @@ unsigned test_qemu_hung(void)
 			       fakeroot);
 
 	/* fail if it does _not_ look hung */
-	if (!ctx->looks_hung) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected non-zero\n",
-			__FILE__, __func__, __LINE__, "ctx->looks_hung");
-		++failures;
-	}
+	failures += Check(ctx->looks_hung, "expected non-zero hung");
 
 	free_global_context();
 	return failures;
@@ -210,12 +206,9 @@ unsigned test_qemu_active_state_4(void)
 			       fakeroot);
 
 	/* fail if it _does_ look hung */
-	if (ctx->looks_hung) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected 0 but was %u\n",
-			__FILE__, __func__, __LINE__, "ctx->looks_hung",
-			ctx->looks_hung);
-		++failures;
-	}
+	failures +=
+	    Check(!ctx->looks_hung, "expected not-hung, but was %u",
+		  ctx->looks_hung);
 
 	free_global_context();
 	return failures;

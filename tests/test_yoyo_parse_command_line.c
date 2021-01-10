@@ -23,15 +23,17 @@ unsigned test_fixture_2(void)
 
 	unsigned failures = 0;
 
-	if (strcmp(options.child_command_line[0], "./fixture") != 0) {
-		++failures;
-	}
-	if (strcmp(options.child_command_line[1], "2") != 0) {
-		++failures;
-	}
-	if (options.verbose) {
-		++failures;
-	}
+	failures +=
+	    Check((strcmp(options.child_command_line[0], "./fixture") == 0),
+		  "was: %s", options.child_command_line[0]);
+
+	failures +=
+	    Check((strcmp(options.child_command_line[1], "2") == 0), "was: %s",
+		  options.child_command_line[1]);
+
+	failures +=
+	    Check(options.verbose == 0, "expected 0 but was %d",
+		  options.verbose);
 
 	return failures;
 }
@@ -58,27 +60,33 @@ unsigned test_ls_l(void)
 
 	unsigned failures = 0;
 
-	if (options.verbose != 2) {
-		++failures;
-	}
-	if (options.hang_check_interval != 30) {
-		++failures;
-	}
-	if (options.max_hangs != 3) {
-		++failures;
-	}
-	if (options.max_retries != 6) {
-		++failures;
-	}
-	if (strcmp(options.fakeroot, "./fake") != 0) {
-		++failures;
-	}
-	if (strcmp(options.child_command_line[0], "ls") != 0) {
-		++failures;
-	}
-	if (strcmp(options.child_command_line[1], "-l") != 0) {
-		++failures;
-	}
+	failures +=
+	    Check(options.verbose == 2, "expected 2 but was %d",
+		  options.verbose);
+
+	failures +=
+	    Check(options.hang_check_interval == 30, "expected 30 but was %d",
+		  options.hang_check_interval);
+
+	failures +=
+	    Check(options.max_hangs == 3, "expected 3 but was %d",
+		  options.max_hangs);
+
+	failures +=
+	    Check(options.max_retries == 6, "expected 6 but was %d",
+		  options.max_retries);
+
+	failures +=
+	    Check((strcmp(options.fakeroot, "./fake") == 0),
+		  "was: %s", options.child_command_line[0]);
+
+	failures +=
+	    Check((strcmp(options.child_command_line[0], "ls") == 0),
+		  "was: %s", options.child_command_line[0]);
+
+	failures +=
+	    Check((strcmp(options.child_command_line[1], "-l") == 0),
+		  "was: %s", options.child_command_line[1]);
 
 	return failures;
 }

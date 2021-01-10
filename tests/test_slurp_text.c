@@ -18,50 +18,33 @@ unsigned test_slurp_tmp(void)
 	fprintf(f, "%s", expect);
 	fclose(f);
 
-	unsigned errors = 0;
+	unsigned failures = 0;
 	char buf[80];
 	char *rv;
 
 	rv = slurp_text(NULL, 80, fname);
-	if (rv) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %s but was %s\n",
-			__FILE__, __func__, __LINE__, "null buf", "NULL", rv);
-		++errors;
-	}
+	failures += Check(rv == NULL, "null buf, expected NULL but was %p", rv);
+
 	rv = slurp_text(buf, 0, fname);
-	if (rv) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %s but was %s\n",
-			__FILE__, __func__, __LINE__, "zero len", "NULL", rv);
-		++errors;
-	}
+	failures += Check(rv == NULL, "zero len, expected NULL but was %p", rv);
+
 	rv = slurp_text(buf, 80, NULL);
-	if (rv) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %s but was %s\n",
-			__FILE__, __func__, __LINE__, "null path", "NULL", rv);
-		++errors;
-	}
+	failures += Check(rv == NULL, "no path, expected NULL but was %p", rv);
+
 	rv = slurp_text(buf, 80, "/bogus/file/name");
-	if (rv) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %s but was %s\n",
-			__FILE__, __func__, __LINE__, "bogus path", "NULL", rv);
-		++errors;
-	}
+	failures += Check(rv == NULL, "bad path, expected NULL but was %p", rv);
 
 	rv = slurp_text(buf, 80, fname);
-	if (!rv) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %p but was %p\n",
-			__FILE__, __func__, __LINE__, "buf", buf, rv);
-		++errors;
-	} else if (strcmp(buf, expect) != 0) {
-		fprintf(stderr, "%s:%s:%d FAIL: %s expected %s but was %s\n",
-			__FILE__, __func__, __LINE__, "contents", expect, buf);
-		++errors;
-
+	failures += Check(rv != NULL, "expected non-NULL. (buf:'%s')", buf);
+	if (rv) {
+		failures +=
+		    Check(strcmp(buf, expect) == 0,
+			  "expected '%s' but was '%s'", expect, buf);
 	}
 
 	remove(fname);
 
-	return errors;
+	return failures;
 }
 
 int main(void)

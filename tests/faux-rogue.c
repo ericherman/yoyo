@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-/* defined in yoyo.h */
-
 enum action_type { succeed = 0, fail, hang };
 
 enum action_type get_action(const char *failpath)

@@ -383,13 +383,31 @@ void exit_reason_child_trap(int sig)
 	}
 }
 
+int pid_exists(long pid)
+{
+	/*
+	 * If sig is 0, then no signal is sent, but existence and permission
+	 * checks are still performed; this can be used to check for the
+	 * existence of a process ID or process group ID that the caller is
+	 * permitted to signal.
+	 */
+	const int sig_exists = 0;
+
+	/*
+	 * On success, zero is returned. On error, -1 is returned, and errno
+	 * is set appropriately.
+	 */
+	int rv = yoyo_kill(pid, sig_exists);
+
+	return (rv == 0);
+}
+
 void monitor_child_for_hang(long childpid, unsigned max_hangs,
 			    unsigned hang_check_interval, const char *fakeroot)
 {
 	unsigned int hang_count = 0;
 	struct state_list *thread_states = NULL;
-	const int sig_exists = 0;
-	while (yoyo_kill(childpid, sig_exists) == 0) {
+	while (pid_exists(childpid)) {
 		unsigned int seconds = hang_check_interval;
 		unsigned int seconds_remaining = yoyo_sleep(seconds);
 		if (seconds_remaining && yoyo_verbose > 0) {

@@ -491,13 +491,6 @@ debug-check: debug-check-unit
 check-all: check check-acceptance html-report
 	@echo "SUCCESS! ($@)"
 
-build/globdemo:
-	mkdir -pv build
-	$(CC) $(CFLAGS) $< -o build/$@
-
-globdemo: build/globdemo
-	./build/globdemo
-
 tidy:
 	$(LINDENT) -T FILE -T pid_t \
 		-T error_injecting_mem_context \

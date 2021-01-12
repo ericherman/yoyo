@@ -8,7 +8,7 @@
 
 extern int (*yoyo_kill)(pid_t pid, int sig);
 extern unsigned int (*yoyo_sleep)(unsigned int seconds);
-extern struct state_list *(*get_states) (long pid, const char *fakeroot);
+extern struct state_list *(*get_states) (long pid);
 extern void (*free_states)(struct state_list *l);
 
 #include <stdio.h>
@@ -63,10 +63,8 @@ static size_t _zmin(size_t a, size_t b)
 	return a < b ? a : b;
 }
 
-struct state_list *faux_get_states(long pid, const char *fakeroot)
+struct state_list *faux_get_states(long pid)
 {
-	(void)fakeroot;
-
 	++ctx->get_states_count;
 
 	if (pid != ctx->childpid) {
@@ -190,15 +188,13 @@ unsigned test_monitor_and_exit_after_4(void)
 
 	unsigned max_hangs = 3;
 	unsigned hang_check_interval = 60;
-	const char *fakeroot = NULL;
 
 	yoyo_kill = faux_kill;
 	yoyo_sleep = faux_sleep;
 	get_states = faux_get_states;
 	free_states = faux_free_states;
 
-	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
-			       fakeroot);
+	monitor_child_for_hang(childpid, max_hangs, hang_check_interval);
 
 	failures +=
 	    Check(ctx->sig_term_count == 0, "expected 0 but was %u",
@@ -241,14 +237,12 @@ unsigned test_monitor_requires_sigkill(void)
 
 	unsigned max_hangs = 3;
 	unsigned hang_check_interval = 60;
-	const char *fakeroot = NULL;
 	yoyo_kill = faux_kill;
 	yoyo_sleep = faux_sleep;
 	get_states = faux_get_states;
 	free_states = faux_free_states;
 
-	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
-			       fakeroot);
+	monitor_child_for_hang(childpid, max_hangs, hang_check_interval);
 
 	failures += Check(ctx->sig_term_count, "expected term");
 

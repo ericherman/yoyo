@@ -13,7 +13,7 @@
 extern int yoyo_verbose;
 extern void *(*yoyo_calloc)(size_t nmemb, size_t size);
 extern void (*yoyo_free)(void *ptr);
-extern struct state_list *(*get_states) (long pid, const char *fakeroot);
+extern struct state_list *(*get_states) (long pid);
 extern void (*free_states)(struct state_list *l);
 extern int yoyo_verbose;
 extern FILE *yoyo_stdout;
@@ -111,7 +111,6 @@ unsigned test_state_list_pid(void)
 	memset(mem, 0x00, sizeof(struct error_injecting_mem_context));
 
 	pid_t pid = getpid();
-	const char *fakeroot = NULL;
 
 	char buf[250];
 	memset(buf, 0x00, 250);
@@ -120,7 +119,7 @@ unsigned test_state_list_pid(void)
 	yoyo_stdout = fbuf;
 	yoyo_stderr = fbuf;
 
-	struct state_list *sl = get_states(pid, fakeroot);
+	struct state_list *sl = get_states(pid);
 
 	fflush(fbuf);
 	fclose(fbuf);

@@ -12,9 +12,9 @@
 #include <stdlib.h>
 
 const unsigned hang_check_interval = 60;
-const char *fakeroot = NULL;
-const pid_t childpid = 1754993;
 size_t max_hangs = 5;
+
+const pid_t childpid = 1754993;
 
 const size_t qemu_state_0_len = 10;
 struct thread_state qemu_state_0[] = {
@@ -182,8 +182,7 @@ unsigned test_qemu_hung(void)
 
 	copy_qemu_states_to_global_context(&failures);
 
-	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
-			       fakeroot);
+	monitor_child_for_hang(childpid, max_hangs, hang_check_interval);
 
 	/* fail if it does _not_ look hung */
 	failures += Check(ctx->looks_hung, "expected non-zero hung");
@@ -202,8 +201,7 @@ unsigned test_qemu_active_state_4(void)
 	size_t last = ctx->state_lists_len - 1;
 	ctx->state_lists[last]->states[9].utime += 10;
 
-	monitor_child_for_hang(childpid, max_hangs, hang_check_interval,
-			       fakeroot);
+	monitor_child_for_hang(childpid, max_hangs, hang_check_interval);
 
 	/* fail if it _does_ look hung */
 	failures +=
@@ -283,10 +281,9 @@ void free_global_context(void)
 
 struct state_list empty_state_list = {.states = NULL,.len = 0 };
 
-struct state_list *faux_get_states(long pid, const char *fakeroot)
+struct state_list *faux_get_states(long pid)
 {
 	(void)pid;
-	(void)fakeroot;
 
 	if (ctx->current_state > ctx->state_lists_len) {
 		/* Why is the code trying to fetch the states more than once
@@ -341,7 +338,7 @@ unsigned int faux_sleep(unsigned int seconds)
 
 extern int (*yoyo_kill)(pid_t pid, int sig);
 extern unsigned int (*yoyo_sleep)(unsigned int seconds);
-extern struct state_list *(*get_states) (long pid, const char *fakeroot);
+extern struct state_list *(*get_states) (long pid);
 extern void (*free_states)(struct state_list *l);
 
 int main(void)

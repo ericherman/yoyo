@@ -49,17 +49,14 @@ struct exit_reason {
 
 /* monitor a child process; signal the process if it looks hung */
 void monitor_child_for_hang(long childpid, unsigned max_hangs,
-			    unsigned hang_check_interval,
-			    const char *fake_root);
+			    unsigned hang_check_interval);
 
 /* look for evidence of a hung process */
 int process_looks_hung(struct state_list **next, struct state_list *previous,
 		       struct state_list *current);
 
-/* given a pid, create state_list based on the '/proc' filesystem
- * if the fakeroot parameter is non-null, it will be prepended before
- * '/proc' */
-struct state_list *get_states_proc(long pid, const char *fakeroot);
+/* given a pid, create state_list based on the '/proc' filesystem */
+struct state_list *get_states_proc(long pid);
 
 /* null-safe; frees the states as well as the state_list struct */
 void free_states_wrap(struct state_list *l, void *context);

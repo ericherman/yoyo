@@ -72,9 +72,12 @@ int (*yoyo_execv)(const char *pathname, char *const argv[]) = execv;
 int (*yoyo_kill)(pid_t pid, int sig) = kill;
 unsigned int (*yoyo_sleep)(unsigned int seconds) = sleep;
 
+/* if the global fakeroot is non-null, it will be prepended before '/proc'
+ * by get_states_proc(pid) */
+const char *fakeroot = NULL;
+
 /* global pointers to internal functions */
-struct state_list *(*get_states) (long pid, const char *fakeroot) =
-    get_states_proc;
+struct state_list *(*get_states) (long pid) = get_states_proc;
 void (*free_states)(struct state_list *l) = state_list_free;
 
 /*************************************************************************/
@@ -101,7 +104,7 @@ int yoyo_main(int argc, char **argv)
 	char **child_command_line = options.child_command_line;
 	int max_hangs = options.max_hangs;
 	int hang_check_interval = options.hang_check_interval;
-	const char *fakeroot = options.fakeroot;
+	fakeroot = options.fakeroot;
 
 	// setup globals for sharing data with signal handler
 	yoyo_verbose = options.verbose;
@@ -147,7 +150,7 @@ int yoyo_main(int argc, char **argv)
 		}
 
 		monitor_child_for_hang(global_childpid, max_hangs,
-				       hang_check_interval, fakeroot);
+				       hang_check_interval);
 
 		if (reason.exit_code != 0) {
 			if (yoyo_verbose >= 0) {
@@ -209,7 +212,7 @@ int process_looks_hung(struct state_list **next, struct state_list *previous,
 	return 1;
 }
 
-static char *pid_to_stat_pattern(char *buf, const char *fakeroot, long pid)
+static char *pid_to_stat_pattern(char *buf, long pid)
 {
 	strcpy(buf, fakeroot ? fakeroot : "");
 	strcat(buf, "/proc/");
@@ -306,12 +309,12 @@ int ignore_no_such_file(const char *epath, int eerrno)
 	return 0;
 }
 
-struct state_list *get_states_proc(long pid, const char *fakeroot)
+struct state_list *get_states_proc(long pid)
 {
 	errno = 0;
 
 	char pattern[FILENAME_MAX + 3];
-	pid_to_stat_pattern(pattern, fakeroot, pid);
+	pid_to_stat_pattern(pattern, pid);
 
 	if (yoyo_verbose > 0) {
 		fprintf(Ystdout, "pattern == '%s'\n", pattern);
@@ -346,8 +349,7 @@ struct state_list *get_states_proc(long pid, const char *fakeroot)
 	}
 
 	if (err || (yoyo_verbose > 0)) {
-		Errorf("get_states for pid: %ld (fakeroot:'%s')"
-		       " errors: %d", (long)pid, fakeroot, err);
+		Errorf("get_states for pid: %ld errors: %d", (long)pid, err);
 	}
 
 	globfree(&threads);
@@ -403,7 +405,7 @@ int pid_exists(long pid)
 }
 
 void monitor_child_for_hang(long childpid, unsigned max_hangs,
-			    unsigned hang_check_interval, const char *fakeroot)
+			    unsigned hang_check_interval)
 {
 	unsigned int hang_count = 0;
 	struct state_list *thread_states = NULL;
@@ -416,7 +418,7 @@ void monitor_child_for_hang(long childpid, unsigned max_hangs,
 				seconds_remaining);
 		}
 		struct state_list *previous = thread_states;
-		struct state_list *current = get_states(childpid, fakeroot);
+		struct state_list *current = get_states(childpid);
 		if (process_looks_hung(&thread_states, previous, current)) {
 			++hang_count;
 			if (hang_count > max_hangs) {

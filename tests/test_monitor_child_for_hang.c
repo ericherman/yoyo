@@ -35,6 +35,91 @@ struct monitor_child_context {
 
 struct monitor_child_context *ctx = NULL;
 
+unsigned test_monitor_and_exit_after_4(void)
+{
+	const long childpid = 10007;
+	struct thread_state three_states_a[3] = {
+		{.pid = 10007,.state = 'S',.utime = 3217,.stime = 3259 },
+		{.pid = 10009,.state = 'R',.utime = 6733,.stime = 5333 },
+		{.pid = 10037,.state = 'R',.utime = 0,.stime = 0 }
+	};
+	struct state_list template = {.states = three_states_a,.len = 3 };
+
+	unsigned failures = 0;
+
+	struct monitor_child_context context;
+	memset(&context, 0x00, sizeof(struct monitor_child_context));
+	ctx = &context;
+
+	ctx->failures = &failures;
+	ctx->childpid = childpid;
+	ctx->templates = &template;
+	ctx->template_len = 1;
+	ctx->get_states_exit_at = 4;
+	ctx->get_states_sleeping_after = 2;
+
+	unsigned max_hangs = 3;
+	unsigned hang_check_interval = 60;
+
+	monitor_child_for_hang(childpid, max_hangs, hang_check_interval);
+
+	failures +=
+	    Check(ctx->sig_term_count == 0, "expected 0 but was %u",
+		  ctx->sig_term_count);
+
+	failures +=
+	    Check(ctx->sig_kill_count == 0, "expected 0 but was %u",
+		  ctx->sig_kill_count);
+
+	failures +=
+	    Check(ctx->free_states_count == ctx->get_states_count,
+		  "expected %u but was %u", ctx->get_states_count,
+		  ctx->free_states_count);
+
+	return failures;
+}
+
+unsigned test_monitor_requires_sigkill(void)
+{
+	const long childpid = 10007;
+	struct thread_state three_states_a[3] = {
+		{.pid = 10007,.state = 'S',.utime = 3217,.stime = 3259 },
+		{.pid = 10009,.state = 'R',.utime = 6733,.stime = 5333 },
+		{.pid = 10037,.state = 'R',.utime = 0,.stime = 0 }
+	};
+	struct state_list template = {.states = three_states_a,.len = 3 };
+
+	unsigned failures = 0;
+
+	struct monitor_child_context context;
+	memset(&context, 0x00, sizeof(struct monitor_child_context));
+	ctx = &context;
+
+	ctx->failures = &failures;
+	ctx->childpid = childpid;
+	ctx->templates = &template;
+	ctx->template_len = 1;
+	ctx->get_states_sleeping_after = 2;
+	ctx->sig_kill_count_to_set_exited = 1;
+
+	unsigned max_hangs = 3;
+	unsigned hang_check_interval = 60;
+
+	monitor_child_for_hang(childpid, max_hangs, hang_check_interval);
+
+	failures += Check(ctx->sig_term_count, "expected term");
+
+	failures += Check(ctx->sig_kill_count, "expected kill");
+
+	failures +=
+	    Check(ctx->free_states_count == ctx->get_states_count,
+		  "expected %u but was %u", ctx->get_states_count,
+		  ctx->free_states_count);
+
+	return failures;
+}
+
+/* Test Fixture functions */
 int check_for_proc_end(void)
 {
 	if (ctx->sig_kill_count_to_set_exited &&
@@ -163,102 +248,14 @@ unsigned int faux_sleep(unsigned int seconds)
 	return 0;
 }
 
-unsigned test_monitor_and_exit_after_4(void)
-{
-	const long childpid = 10007;
-	struct thread_state three_states_a[3] = {
-		{.pid = 10007,.state = 'S',.utime = 3217,.stime = 3259 },
-		{.pid = 10009,.state = 'R',.utime = 6733,.stime = 5333 },
-		{.pid = 10037,.state = 'R',.utime = 0,.stime = 0 }
-	};
-	struct state_list template = {.states = three_states_a,.len = 3 };
-
-	unsigned failures = 0;
-
-	struct monitor_child_context context;
-	memset(&context, 0x00, sizeof(struct monitor_child_context));
-	ctx = &context;
-
-	ctx->failures = &failures;
-	ctx->childpid = childpid;
-	ctx->templates = &template;
-	ctx->template_len = 1;
-	ctx->get_states_exit_at = 4;
-	ctx->get_states_sleeping_after = 2;
-
-	unsigned max_hangs = 3;
-	unsigned hang_check_interval = 60;
-
-	yoyo_kill = faux_kill;
-	yoyo_sleep = faux_sleep;
-	get_states = faux_get_states;
-	free_states = faux_free_states;
-
-	monitor_child_for_hang(childpid, max_hangs, hang_check_interval);
-
-	failures +=
-	    Check(ctx->sig_term_count == 0, "expected 0 but was %u",
-		  ctx->sig_term_count);
-
-	failures +=
-	    Check(ctx->sig_kill_count == 0, "expected 0 but was %u",
-		  ctx->sig_kill_count);
-
-	failures +=
-	    Check(ctx->free_states_count == ctx->get_states_count,
-		  "expected %u but was %u", ctx->get_states_count,
-		  ctx->free_states_count);
-
-	return failures;
-}
-
-unsigned test_monitor_requires_sigkill(void)
-{
-	const long childpid = 10007;
-	struct thread_state three_states_a[3] = {
-		{.pid = 10007,.state = 'S',.utime = 3217,.stime = 3259 },
-		{.pid = 10009,.state = 'R',.utime = 6733,.stime = 5333 },
-		{.pid = 10037,.state = 'R',.utime = 0,.stime = 0 }
-	};
-	struct state_list template = {.states = three_states_a,.len = 3 };
-
-	unsigned failures = 0;
-
-	struct monitor_child_context context;
-	memset(&context, 0x00, sizeof(struct monitor_child_context));
-	ctx = &context;
-
-	ctx->failures = &failures;
-	ctx->childpid = childpid;
-	ctx->templates = &template;
-	ctx->template_len = 1;
-	ctx->get_states_sleeping_after = 2;
-	ctx->sig_kill_count_to_set_exited = 1;
-
-	unsigned max_hangs = 3;
-	unsigned hang_check_interval = 60;
-	yoyo_kill = faux_kill;
-	yoyo_sleep = faux_sleep;
-	get_states = faux_get_states;
-	free_states = faux_free_states;
-
-	monitor_child_for_hang(childpid, max_hangs, hang_check_interval);
-
-	failures += Check(ctx->sig_term_count, "expected term");
-
-	failures += Check(ctx->sig_kill_count, "expected kill");
-
-	failures +=
-	    Check(ctx->free_states_count == ctx->get_states_count,
-		  "expected %u but was %u", ctx->get_states_count,
-		  ctx->free_states_count);
-
-	return failures;
-}
-
 int main(void)
 {
 	unsigned failures = 0;
+
+	yoyo_kill = faux_kill;
+	yoyo_sleep = faux_sleep;
+	get_states = faux_get_states;
+	free_states = faux_free_states;
 
 	failures += run_test(test_monitor_and_exit_after_4);
 	failures += run_test(test_monitor_requires_sigkill);

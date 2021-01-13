@@ -72,9 +72,9 @@ int (*yoyo_execv)(const char *pathname, char *const argv[]) = execv;
 int (*yoyo_kill)(pid_t pid, int sig) = kill;
 unsigned int (*yoyo_sleep)(unsigned int seconds) = sleep;
 
-/* if the global fakeroot is non-null, it will be prepended before '/proc'
- * by get_states_proc(pid) */
-const char *fakeroot = NULL;
+/* if the global yoyo_proc_fakeroot is non-null, it will be prepended before
+ * '/proc' by get_states_proc(pid) */
+const char *yoyo_proc_fakeroot = NULL;
 
 /* global pointers to internal functions */
 struct state_list *(*get_states) (long pid) = get_states_proc;
@@ -104,14 +104,15 @@ int yoyo_main(int argc, char **argv)
 	char **child_command_line = options.child_command_line;
 	int max_hangs = options.max_hangs;
 	int hang_check_interval = options.hang_check_interval;
-	fakeroot = options.fakeroot;
 
-	// setup globals for sharing data with signal handler
+	// setup globals
 	yoyo_verbose = options.verbose;
 	if (yoyo_verbose > 0) {
 		fprintf(Ystdout, "yoyo_verbose: %d\n", yoyo_verbose);
 	}
+	yoyo_proc_fakeroot = options.fakeroot;
 
+	// setup globals for sharing data with signal handler
 	struct exit_reason reason;
 	child_trap_exit_code_singleton = &reason;
 
@@ -214,7 +215,7 @@ int process_looks_hung(struct state_list **next, struct state_list *previous,
 
 static char *pid_to_stat_pattern(char *buf, long pid)
 {
-	strcpy(buf, fakeroot ? fakeroot : "");
+	strcpy(buf, yoyo_proc_fakeroot ? yoyo_proc_fakeroot : "");
 	strcat(buf, "/proc/");
 	sprintf(buf + strlen(buf), "%ld", pid);
 	strcat(buf, "/task/*/stat");

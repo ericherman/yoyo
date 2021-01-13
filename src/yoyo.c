@@ -48,10 +48,8 @@
 
   Thus, we will need some global space to pass data between functions.
 */
-
-static pid_t global_childpid = 0;
-
-static struct exit_reason *child_trap_exit_code_singleton = NULL;
+static pid_t global_childpid;
+static struct exit_reason global_exit_reason;
 
 /* global verbose, can be set via commandline options, or directly in tests */
 int yoyo_verbose = 0;
@@ -113,8 +111,8 @@ int yoyo_main(int argc, char **argv)
 	yoyo_proc_fakeroot = options.fakeroot;
 
 	// setup globals for sharing data with signal handler
-	struct exit_reason reason;
-	child_trap_exit_code_singleton = &reason;
+	global_childpid = 0;
+	exit_reason_clear(&global_exit_reason);
 
 	// now that globals are setup, set the handler
 	signal(SIGCHLD, &exit_reason_child_trap);
@@ -123,7 +121,7 @@ int yoyo_main(int argc, char **argv)
 	     retries_remaining > 0; --retries_remaining) {
 
 		// reset our exit reason prior to each fork
-		exit_reason_clear(&reason);
+		exit_reason_clear(&global_exit_reason);
 
 		errno = 0;
 		global_childpid = yoyo_fork();
@@ -153,13 +151,13 @@ int yoyo_main(int argc, char **argv)
 		monitor_child_for_hang(global_childpid, max_hangs,
 				       hang_check_interval);
 
-		if (reason.exit_code != 0) {
+		if (global_exit_reason.exit_code != 0) {
 			if (yoyo_verbose >= 0) {
 				fprintf(Ystdout,
 					"Child exited with status %d\n",
-					reason.exit_code);
+					global_exit_reason.exit_code);
 			}
-		} else if (reason.exited) {
+		} else if (global_exit_reason.exited) {
 			if (yoyo_verbose >= 0) {
 				fprintf(Ystdout,
 					"Child completed successfully\n");
@@ -167,7 +165,7 @@ int yoyo_main(int argc, char **argv)
 			return EXIT_SUCCESS;
 		} else {
 			char er_buf[250];
-			exit_reason_to_str(&reason, er_buf, 250);
+			exit_reason_to_str(&global_exit_reason, er_buf, 250);
 			fprintf(Ystdout, "child %ld:\n%s\n",
 				(long)global_childpid, er_buf);
 		}
@@ -371,8 +369,7 @@ void exit_reason_child_trap(int sig)
 	pid_t pid = waitpid(any_child, &wait_status, options);
 
 	if (pid == global_childpid) {
-		exit_reason_set(child_trap_exit_code_singleton, pid,
-				wait_status);
+		exit_reason_set(&global_exit_reason, pid, wait_status);
 	}
 
 	if (yoyo_verbose > 0) {

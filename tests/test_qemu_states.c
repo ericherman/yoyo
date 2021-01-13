@@ -14,7 +14,7 @@
 const unsigned hang_check_interval = 60;
 size_t max_hangs = 5;
 
-const pid_t childpid = 1754993;
+const pid_t child_pid = 1754993;
 
 const size_t qemu_state_0_len = 10;
 struct thread_state qemu_state_0[] = {
@@ -182,7 +182,7 @@ unsigned test_qemu_hung(void)
 
 	copy_qemu_states_to_global_context(&failures);
 
-	monitor_child_for_hang(childpid, max_hangs, hang_check_interval);
+	monitor_child_for_hang(child_pid, max_hangs, hang_check_interval);
 
 	/* fail if it does _not_ look hung */
 	failures += Check(ctx->looks_hung, "expected non-zero hung");
@@ -201,7 +201,7 @@ unsigned test_qemu_active_state_4(void)
 	size_t last = ctx->state_lists_len - 1;
 	ctx->state_lists[last]->states[9].utime += 10;
 
-	monitor_child_for_hang(childpid, max_hangs, hang_check_interval);
+	monitor_child_for_hang(child_pid, max_hangs, hang_check_interval);
 
 	/* fail if it _does_ look hung */
 	failures +=

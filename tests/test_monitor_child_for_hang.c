@@ -18,7 +18,7 @@ extern void (*free_states)(struct state_list *l);
 
 struct monitor_child_context {
 	unsigned *failures;
-	long childpid;
+	long child_pid;
 	struct state_list *templates;
 	size_t template_len;
 	unsigned has_exited;
@@ -37,7 +37,7 @@ struct monitor_child_context *ctx = NULL;
 
 unsigned test_monitor_and_exit_after_4(void)
 {
-	const long childpid = 10007;
+	const long child_pid = 10007;
 	struct thread_state three_states_a[3] = {
 		{.pid = 10007,.state = 'S',.utime = 3217,.stime = 3259 },
 		{.pid = 10009,.state = 'R',.utime = 6733,.stime = 5333 },
@@ -52,7 +52,7 @@ unsigned test_monitor_and_exit_after_4(void)
 	ctx = &context;
 
 	ctx->failures = &failures;
-	ctx->childpid = childpid;
+	ctx->child_pid = child_pid;
 	ctx->templates = &template;
 	ctx->template_len = 1;
 	ctx->get_states_exit_at = 4;
@@ -61,7 +61,7 @@ unsigned test_monitor_and_exit_after_4(void)
 	unsigned max_hangs = 3;
 	unsigned hang_check_interval = 60;
 
-	monitor_child_for_hang(childpid, max_hangs, hang_check_interval);
+	monitor_child_for_hang(child_pid, max_hangs, hang_check_interval);
 
 	failures +=
 	    Check(ctx->sig_term_count == 0, "expected 0 but was %u",
@@ -81,7 +81,7 @@ unsigned test_monitor_and_exit_after_4(void)
 
 unsigned test_monitor_requires_sigkill(void)
 {
-	const long childpid = 10007;
+	const long child_pid = 10007;
 	struct thread_state three_states_a[3] = {
 		{.pid = 10007,.state = 'S',.utime = 3217,.stime = 3259 },
 		{.pid = 10009,.state = 'R',.utime = 6733,.stime = 5333 },
@@ -96,7 +96,7 @@ unsigned test_monitor_requires_sigkill(void)
 	ctx = &context;
 
 	ctx->failures = &failures;
-	ctx->childpid = childpid;
+	ctx->child_pid = child_pid;
 	ctx->templates = &template;
 	ctx->template_len = 1;
 	ctx->get_states_sleeping_after = 2;
@@ -105,7 +105,7 @@ unsigned test_monitor_requires_sigkill(void)
 	unsigned max_hangs = 3;
 	unsigned hang_check_interval = 60;
 
-	monitor_child_for_hang(childpid, max_hangs, hang_check_interval);
+	monitor_child_for_hang(child_pid, max_hangs, hang_check_interval);
 
 	failures += Check(ctx->sig_term_count, "expected term");
 
@@ -152,10 +152,10 @@ struct state_list *faux_get_states(long pid)
 {
 	++ctx->get_states_count;
 
-	if (pid != ctx->childpid) {
+	if (pid != ctx->child_pid) {
 		++(*ctx->failures);
 		fprintf(stderr, "%s:%s:%d WHAT? Expected pid %ld but was %ld\n",
-			__FILE__, __func__, __LINE__, ctx->childpid, pid);
+			__FILE__, __func__, __LINE__, ctx->child_pid, pid);
 	}
 
 	check_for_proc_end();
@@ -189,10 +189,11 @@ int faux_kill(pid_t pid, int sig)
 {
 	int err = 0;
 
-	if (pid != ctx->childpid) {
+	if (pid != ctx->child_pid) {
 		++err;
 		fprintf(stderr, "%s:%s:%d WHAT? Expected pid %ld but was %ld\n",
-			__FILE__, __func__, __LINE__, ctx->childpid, (long)pid);
+			__FILE__, __func__, __LINE__, ctx->child_pid,
+			(long)pid);
 	}
 
 	if (sig == 0) {

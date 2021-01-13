@@ -48,7 +48,7 @@ struct exit_reason {
 /* function prototypes */
 
 /* monitor a child process; signal the process if it looks hung */
-void monitor_child_for_hang(long childpid, unsigned max_hangs,
+void monitor_child_for_hang(long child_pid, unsigned max_hangs,
 			    unsigned hang_check_interval);
 
 /* look for evidence of a hung process */

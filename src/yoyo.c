@@ -400,12 +400,12 @@ int pid_exists(long pid)
 	return (rv == 0);
 }
 
-void monitor_child_for_hang(long childpid, unsigned max_hangs,
+void monitor_child_for_hang(long child_pid, unsigned max_hangs,
 			    unsigned hang_check_interval)
 {
 	unsigned int hang_count = 0;
 	struct state_list *thread_states = NULL;
-	while (pid_exists(childpid)) {
+	while (pid_exists(child_pid)) {
 		unsigned int seconds = hang_check_interval;
 		unsigned int seconds_remaining = yoyo_sleep(seconds);
 		if (seconds_remaining && yoyo_verbose > 0) {
@@ -414,21 +414,21 @@ void monitor_child_for_hang(long childpid, unsigned max_hangs,
 				seconds_remaining);
 		}
 		struct state_list *previous = thread_states;
-		struct state_list *current = get_states(childpid);
+		struct state_list *current = get_states(child_pid);
 		if (process_looks_hung(&thread_states, previous, current)) {
 			++hang_count;
 			if (hang_count > max_hangs) {
 				int need_dash_9 = hang_count > (max_hangs + 1);
 				int sig = need_dash_9 ? SIGKILL : SIGTERM;
 				errno = 0;
-				int err = yoyo_kill(childpid, sig);
+				int err = yoyo_kill(child_pid, sig);
 				/* ESRCH: No such process */
 				if ((yoyo_verbose > 0)
 				    || (err && (errno != ESRCH))) {
 					const char *sigstr = (sig == SIGKILL)
 					    ? "SIGKILL" : "SIGTERM";
 					Errorf
-					    ("kill(childpid, %d) returned %d",
+					    ("kill(child_pid, %d) returned %d",
 					     sigstr, err);
 				}
 				yoyo_sleep(0);	// yield after kill

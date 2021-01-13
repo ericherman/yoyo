@@ -48,7 +48,6 @@
 
   Thus, we will need some global space to pass data between functions.
 */
-static pid_t global_childpid;
 static struct exit_reason global_exit_reason;
 
 /* global verbose, can be set via commandline options, or directly in tests */
@@ -110,8 +109,7 @@ int yoyo_main(int argc, char **argv)
 	}
 	yoyo_proc_fakeroot = options.fakeroot;
 
-	// setup globals for sharing data with signal handler
-	global_childpid = 0;
+	// setup global for sharing data with signal handler
 	exit_reason_clear(&global_exit_reason);
 
 	// now that globals are setup, set the handler
@@ -124,12 +122,12 @@ int yoyo_main(int argc, char **argv)
 		exit_reason_clear(&global_exit_reason);
 
 		errno = 0;
-		global_childpid = yoyo_fork();
+		global_exit_reason.child_pid = yoyo_fork();
 
-		if (global_childpid < 0) {
+		if (global_exit_reason.child_pid < 0) {
 			Errorf("fork() failed?");
 			return EXIT_FAILURE;
-		} else if (global_childpid == 0) {
+		} else if (global_exit_reason.child_pid == 0) {
 			// in child process
 			if (yoyo_verbose > 0) {
 				for (int i = 0; i < child_command_line_len; ++i) {
@@ -145,10 +143,10 @@ int yoyo_main(int argc, char **argv)
 
 		if (yoyo_verbose > 0) {
 			fprintf(Ystdout, "child_pid: %ld\n",
-				(long)global_childpid);
+				(long)global_exit_reason.child_pid);
 		}
 
-		monitor_child_for_hang(global_childpid, max_hangs,
+		monitor_child_for_hang(global_exit_reason.child_pid, max_hangs,
 				       hang_check_interval);
 
 		if (global_exit_reason.exit_code != 0) {
@@ -167,7 +165,7 @@ int yoyo_main(int argc, char **argv)
 			char er_buf[250];
 			exit_reason_to_str(&global_exit_reason, er_buf, 250);
 			fprintf(Ystdout, "child %ld:\n%s\n",
-				(long)global_childpid, er_buf);
+				(long)global_exit_reason.child_pid, er_buf);
 		}
 	}
 
@@ -368,7 +366,7 @@ void exit_reason_child_trap(int sig)
 
 	pid_t pid = waitpid(any_child, &wait_status, options);
 
-	if (pid == global_childpid) {
+	if (pid == global_exit_reason.child_pid) {
 		exit_reason_set(&global_exit_reason, pid, wait_status);
 	}
 
@@ -429,8 +427,9 @@ void monitor_child_for_hang(long childpid, unsigned max_hangs,
 				    || (err && (errno != ESRCH))) {
 					const char *sigstr = (sig == SIGKILL)
 					    ? "SIGKILL" : "SIGTERM";
-					Errorf("kill(childpid, %d) returned %d",
-					       sigstr, err);
+					Errorf
+					    ("kill(childpid, %d) returned %d",
+					     sigstr, err);
 				}
 				yoyo_sleep(0);	// yield after kill
 			}

@@ -57,16 +57,15 @@ FILE *yoyo_stdout = NULL;
 FILE *yoyo_stderr = NULL;
 #define Ystderr (yoyo_stderr ? yoyo_stderr : stderr)
 
-#define Ylog(level, format, ...) \
-	do { \
-		if (yoyo_verbose >= level) { \
-			fflush(Ystdout); \
-			fprintf(Ystderr, format __VA_OPT__(,) __VA_ARGS__); \
-		} \
-	} while (0)
+#define Y_USE_PREFIX 1
+#define Ylog(log_level, format, ...) \
+	yoyo_log(log_level, Y_USE_PREFIX, __FILE__, __LINE__, __func__, \
+		format __VA_OPT__(,) __VA_ARGS__);
 
-#define Errorf(format, ...) \
-	errorf(__FILE__, __LINE__, __func__, format __VA_OPT__(,) __VA_ARGS__)
+#define Y_SKIP_PREFIX 0
+#define Ylog_append(log_level, format, ...) \
+	yoyo_log(log_level, Y_SKIP_PREFIX, __FILE__, __LINE__, __func__, \
+		format __VA_OPT__(,) __VA_ARGS__);
 
 /* global pointers to calloc(), free() provided for testing OOM and such */
 void *(*yoyo_calloc)(size_t nmemb, size_t size) = calloc;
@@ -140,14 +139,15 @@ int yoyo(int argc, char **argv)
 		global_exit_reason.child_pid = yoyo_fork();
 
 		if (global_exit_reason.child_pid < 0) {
-			Errorf("fork() failed?");
+			Ylog(0, "fork() failed?\n");
 			return EXIT_FAILURE;
 		} else if (global_exit_reason.child_pid == 0) {
 			// in child process
-			for (int i = 0; i < child_command_line_len; ++i) {
-				Ylog(1, "%s ", child_command_line[i]);
+			Ylog(1, "%s", child_command_line[0]);
+			for (int i = 1; i < child_command_line_len; ++i) {
+				Ylog_append(1, " %s", child_command_line[i]);
 			}
-			Ylog(1, "\n");
+			Ylog_append(1, "\n");
 			return yoyo_execv(child_command_line[0],
 					  child_command_line);
 		}
@@ -249,18 +249,17 @@ int thread_state_from_path(struct thread_state *ts, const char *path)
 	char buf[buf_len];
 	errno = 0;
 	char *rbuf = slurp_text(buf, buf_len, path);
-	if (yoyo_verbose > 1 || (!rbuf && errno != ENOENT)) {
-		Errorf("slurp_text returned %p", rbuf);
-	}
+	int log_level = (!rbuf && errno != ENOENT) ? 0 : 2;
+	Ylog(log_level, "slurp_text returned %p\n", rbuf);
 
 	const char *stat_scanf =
 	    "%d %*s %c %*d %*d %*d %*d %*d %*u %*lu %*lu %*lu %*lu %lu %lu";
 	errno = 0;
 	int matched = sscanf(buf, stat_scanf, &ts->pid, &ts->state, &ts->utime,
 			     &ts->stime);
-	if (yoyo_verbose > 1 || matched != 4) {
-		Errorf("scanf matched %d of 4 fields for %s", matched, path);
-	}
+
+	log_level = (matched != 4) ? 0 : 2;
+	Ylog(log_level, "scanf matched %d of 4 fields for %s\n", matched, path);
 
 	return (4 - matched);
 }
@@ -270,7 +269,7 @@ struct state_list *state_list_new(size_t length)
 	size_t size = sizeof(struct state_list);
 	struct state_list *sl = yoyo_calloc(1, size);
 	if (!sl) {
-		Errorf("could not alloc (%zu bytes)?", size);
+		Ylog(0, "could not alloc (%zu bytes)?\n", size);
 		return NULL;
 	}
 
@@ -279,8 +278,8 @@ struct state_list *state_list_new(size_t length)
 	sl->states = yoyo_calloc(sl->len, size);
 	if (!sl->states) {
 		size_t total = sl->len * size;
-		Errorf("could not alloc(%zu, %zu) (%zu bytes)?", sl->len, size,
-		       total);
+		Ylog(0, "could not alloc(%zu, %zu) (%zu bytes)?\n", sl->len,
+		     size, total);
 		yoyo_free(sl);
 		return NULL;
 	}
@@ -298,9 +297,9 @@ void state_list_free(struct state_list *l)
 /* errno ENOENT: No such file or directory */
 int ignore_no_such_file(const char *epath, int eerrno)
 {
-	if (yoyo_verbose > 1 || errno != ENOENT) {
-		Errorf("%s (%d)", epath, eerrno);
-	}
+	int log_level = (errno != ENOENT) ? 0 : 2;
+	Ylog(log_level, "%s (%d)\n", epath, eerrno);
+
 	return 0;
 }
 
@@ -337,9 +336,8 @@ struct state_list *get_states_proc(long pid)
 		err += thread_state_from_path(ts, path);
 	}
 
-	if (err || (yoyo_verbose > 0)) {
-		Errorf("get_states for pid: %ld errors: %d", (long)pid, err);
-	}
+	int log_level = err ? 0 : 1;
+	Ylog(log_level, "get_states for pid: %ld errors: %d\n", (long)pid, err);
 
 	globfree(&threads);
 
@@ -412,14 +410,15 @@ void monitor_child_for_hang(long child_pid, unsigned max_hangs,
 				errno = 0;
 				int err = yoyo_kill(child_pid, sig);
 				/* ESRCH: No such process */
-				if ((yoyo_verbose > 0)
-				    || (err && (errno != ESRCH))) {
-					const char *sigstr = (sig == SIGKILL)
-					    ? "SIGKILL" : "SIGTERM";
-					Errorf
-					    ("kill(child_pid, %s) returned %d",
-					     sigstr, err);
-				}
+				int log_level = (err && (errno != ESRCH))
+				    ? 0 : 1;
+				const char *sigstr = (sig == SIGKILL)
+				    ? "SIGKILL" : "SIGTERM";
+
+				Ylog(log_level,
+				     "kill(child_pid, %s) returned %d\n",
+				     sigstr, err);
+
 				yoyo_sleep(0);	// yield after kill
 			}
 		} else {
@@ -451,28 +450,31 @@ int appendf(char *buf, size_t bufsize, const char *format, ...)
 	return printed;
 }
 
-void errorf(const char *file, int line, const char *func, const char *format,
-	    ...)
+void yoyo_log(int loglevel, int prefix, const char *file, int line,
+	      const char *func, const char *format, ...)
 {
 	int _errorf_save = errno;
 	errno = 0;
-	if (yoyo_verbose < 0) {
+	if (yoyo_verbose < loglevel) {
 		return;
 	}
+
 	fflush(Ystdout);
-	fprintf(Ystderr, "%s:%d %s(): ", file, line, func);
+
+	if (prefix) {
+		fprintf(Ystderr, "%s:%d %s(): ", file, line, func);
+	}
+
+	if (_errorf_save) {
+		fprintf(Ystderr, "errno %d (%s): ", _errorf_save,
+			strerror(_errorf_save));
+	}
 
 	va_list args;
 
 	va_start(args, format);
 	vfprintf(Ystderr, format, args);
 	va_end(args);
-
-	if (_errorf_save) {
-		fprintf(Ystderr, " errno %d: %s", _errorf_save,
-			strerror(_errorf_save));
-	}
-	fprintf(Ystderr, "\n");
 }
 
 void exit_reason_clear(struct exit_reason *reason)

@@ -106,7 +106,7 @@ int yoyo(int argc, char **argv)
 	int child_command_line_len = options.child_command_line_len;
 	if (options.version) {
 		fprintf(Ystdout, "%s version %s\n", YOYO_NAME, YOYO_VERSION);
-		return 0;
+		return EXIT_SUCCESS;
 	} else if (options.help || !child_command_line_len) {
 		print_help(Ystdout, argv[0]);
 		if (!options.help && !child_command_line_len) {

@@ -468,7 +468,7 @@ debug-check-acceptance: \
 		debug-check-acceptance-hang-every-time
 	@echo "SUCCESS! ($@)"
 
-coverage.info: debug-check-unit debug-check-acceptance
+coverage.info: debug-check-unit
 	lcov    --checksum \
 		--capture \
 		--base-directory . \
@@ -492,13 +492,19 @@ check-all: check check-acceptance html-report
 	@echo "SUCCESS! ($@)"
 
 tidy:
-	$(LINDENT) -T FILE -T pid_t \
+	$(LINDENT) \
+		-T FILE -T pid_t \
 		-T error_injecting_mem_context \
 		-T exit_reason \
 		-T monitor_child_context \
 		-T state_list \
 		-T thread_state \
 		-T yoyo_options \
+		-T fork_func \
+		-T execv_func \
+		-T sighandler_func \
+		-T signal_func \
+		-T monitor_for_hang_func \
 		src/*.c src/*.h tests/*.c tests/*.h
 
 clean:

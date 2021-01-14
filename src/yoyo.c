@@ -19,6 +19,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <string.h>		/* strerror */
 #include <sys/types.h>		/* pid_t */
 #include <sys/wait.h>		/* waitpid */
@@ -68,6 +69,11 @@ pid_t (*yoyo_fork)(void) = fork;
 int (*yoyo_execv)(const char *pathname, char *const argv[]) = execv;
 int (*yoyo_kill)(pid_t pid, int sig) = kill;
 unsigned int (*yoyo_sleep)(unsigned int seconds) = sleep;
+
+/* TODO: replace calls to "signal" with "sigaction" */
+/* global pointers to signal, waitpid provided for tests */
+typedef void (*sighandler_func)(int);
+sighandler_func (*yoyo_signal)(int signum, sighandler_func handler) = signal;
 pid_t (*yoyo_waitpid)(pid_t pid, int *wstatus, int options) = waitpid;
 
 /* if the global yoyo_proc_fakeroot is non-null, it will be prepended before
@@ -77,6 +83,8 @@ const char *yoyo_proc_fakeroot = NULL;
 /* global pointers to internal functions */
 struct state_list *(*get_states) (long pid) = get_states_proc;
 void (*free_states)(struct state_list *l) = state_list_free;
+void (*monitor_for_hang)(long child_pid, unsigned max_hangs,
+			 unsigned hang_check_interval) = monitor_child_for_hang;
 
 /*************************************************************************/
 /* functions */
@@ -114,7 +122,7 @@ int yoyo_main(int argc, char **argv)
 	exit_reason_clear(&global_exit_reason);
 
 	// now that globals are setup, set the handler
-	signal(SIGCHLD, &exit_reason_child_trap);
+	yoyo_signal(SIGCHLD, &exit_reason_child_trap);
 
 	for (int retries_remaining = max_retries;
 	     retries_remaining > 0; --retries_remaining) {
@@ -147,8 +155,8 @@ int yoyo_main(int argc, char **argv)
 				(long)global_exit_reason.child_pid);
 		}
 
-		monitor_child_for_hang(global_exit_reason.child_pid, max_hangs,
-				       hang_check_interval);
+		monitor_for_hang(global_exit_reason.child_pid, max_hangs,
+				 hang_check_interval);
 
 		if (global_exit_reason.exit_code != 0) {
 			if (yoyo_verbose >= 0) {
@@ -366,6 +374,8 @@ void exit_reason_child_trap(int sig)
 	int options = 0;
 
 	pid_t pid = yoyo_waitpid(any_child, &wait_status, options);
+
+	fprintf(stderr, "wait_status: %d\n", wait_status);
 
 	if (pid == global_exit_reason.child_pid) {
 		exit_reason_set(&global_exit_reason, pid, wait_status);

@@ -375,8 +375,6 @@ void exit_reason_child_trap(int sig)
 
 	pid_t pid = yoyo_waitpid(any_child, &wait_status, options);
 
-	fprintf(stderr, "wait_status: %d\n", wait_status);
-
 	if (pid == global_exit_reason.child_pid) {
 		exit_reason_set(&global_exit_reason, pid, wait_status);
 	}

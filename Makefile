@@ -479,10 +479,17 @@ html-report: coverage.info
 	mkdir -pv ./coverage_html
 	genhtml coverage.info --output-directory coverage_html
 
+check-code-coverage: html-report
+	# expect two: one for lines, one for functions
+	if [ $$(grep -c 'headerCovTableEntryHi">100.0' \
+		./coverage_html/src/yoyo.c.gcov.html) -eq 2 ]; \
+		then true; else false; fi
+	@echo "SUCCESS! ($@)"
+
 coverage: html-report
 	$(BROWSER) ./coverage_html/src/yoyo.c.gcov.html
 
-check: check-unit
+check: check-unit check-code-coverage
 	@echo "SUCCESS! ($@)"
 
 debug-check: debug-check-unit

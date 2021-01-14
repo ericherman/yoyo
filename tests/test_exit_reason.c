@@ -60,6 +60,27 @@ unsigned test_wait_status_1(void)
 	return failures;
 }
 
+unsigned test_wait_status_15(void)
+{
+	struct exit_reason reason;
+	exit_reason_clear(&reason);
+
+	long pid = 23;
+	int wait_status = 15;
+
+	exit_reason_set(&reason, pid, wait_status);
+
+	char buf[250];
+	exit_reason_to_str(&reason, buf, 250);
+
+	unsigned failures = 0;
+
+	const char *expect = "terminated by a signal 15";
+	failures += Check(strstr(buf, expect), "no '%s' in: %s", expect, buf);
+
+	return failures;
+}
+
 unsigned test_wait_status_2943(void)
 {
 	struct exit_reason reason;
@@ -97,6 +118,27 @@ unsigned test_wait_status_ffff(void)
 	unsigned failures = 0;
 
 	const char *expect = "resumed";
+	failures += Check(strstr(buf, expect), "no '%s' in: %s", expect, buf);
+
+	return failures;
+}
+
+unsigned test_wait_status_32512(void)
+{
+	struct exit_reason reason;
+	exit_reason_clear(&reason);
+
+	long pid = 4973;
+	int wait_status = 32512;
+
+	exit_reason_set(&reason, pid, wait_status);
+
+	char buf[250];
+	exit_reason_to_str(&reason, buf, 250);
+
+	unsigned failures = 0;
+
+	const char *expect = "terminated normally exit code: 127";
 	failures += Check(strstr(buf, expect), "no '%s' in: %s", expect, buf);
 
 	return failures;
@@ -181,8 +223,10 @@ int main(void)
 
 	failures += run_test(test_wait_status_0);
 	failures += run_test(test_wait_status_1);
+	failures += run_test(test_wait_status_15);
 	failures += run_test(test_wait_status_2943);
 	failures += run_test(test_wait_status_ffff);
+	failures += run_test(test_wait_status_32512);
 	failures += run_test(test_exit_reason_child_trap);
 
 	return failures_to_status("test_exit_reason", failures);

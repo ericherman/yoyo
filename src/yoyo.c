@@ -32,9 +32,6 @@
 #define DEFAULT_MAX_HANGS 5
 #define DEFAULT_MAX_RETRIES 5
 
-#define Errorf(format, ...) \
-	errorf(__FILE__, __LINE__, __func__, format __VA_OPT__(,) __VA_ARGS__)
-
 /*************************************************************************/
 /* globals */
 /*************************************************************************/
@@ -67,6 +64,9 @@ FILE *yoyo_stderr = NULL;
 			fprintf(Ystderr, format __VA_OPT__(,) __VA_ARGS__); \
 		} \
 	} while (0)
+
+#define Errorf(format, ...) \
+	errorf(__FILE__, __LINE__, __func__, format __VA_OPT__(,) __VA_ARGS__)
 
 /* global pointers to calloc(), free() provided for testing OOM and such */
 void *(*yoyo_calloc)(size_t nmemb, size_t size) = calloc;
@@ -460,7 +460,7 @@ void errorf(const char *file, int line, const char *func, const char *format,
 		return;
 	}
 	fflush(Ystdout);
-	fprintf(Ystderr, "%s:%d (%s) ", file, line, func);
+	fprintf(Ystderr, "%s:%d %s(): ", file, line, func);
 
 	va_list args;
 

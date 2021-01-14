@@ -9,6 +9,14 @@
 #include <string.h>
 #include <sys/types.h>
 
+extern int optind, opterr, optopt;
+void reset_getopt_globals(void)
+{
+	optind = 1;
+	opterr = 1;
+	optopt = 63;
+}
+
 extern FILE *yoyo_stdout;
 extern FILE *yoyo_stderr;
 
@@ -66,6 +74,7 @@ unsigned test_fake_fork(void)
 	yoyo_stdout = fbuf;
 	yoyo_stderr = fbuf;
 
+	reset_getopt_globals();
 	int exit_val = yoyo_main(argc, argv);
 
 	fflush(fbuf);
@@ -120,12 +129,16 @@ unsigned test_help(void)
 	yoyo_stdout = fbuf;
 	yoyo_stderr = fbuf;
 
-	yoyo_main(argc, argv);
+	reset_getopt_globals();
+
+	int exit_val = yoyo_main(argc, argv);
 
 	fflush(fbuf);
 	fclose(fbuf);
 	yoyo_stdout = dev_null;
 	yoyo_stderr = dev_null;
+
+	failures += Check(!exit_val, "expected 0 but was: %d", exit_val);
 
 	const char *expect = "max-hangs";
 	failures +=
@@ -163,12 +176,16 @@ unsigned test_version(void)
 	yoyo_stdout = fbuf;
 	yoyo_stderr = fbuf;
 
-	yoyo_main(argc, argv);
+	reset_getopt_globals();
+
+	int exit_val = yoyo_main(argc, argv);
 
 	fflush(fbuf);
 	fclose(fbuf);
 	yoyo_stdout = dev_null;
 	yoyo_stderr = dev_null;
+
+	failures += Check(!exit_val, "expected 0 but was: %d", exit_val);
 
 	const char *expect = "0.0.1";
 	failures +=
@@ -202,6 +219,8 @@ unsigned test_failing_fork(void)
 	char *child_argv1 = "2";
 	char *argv[4] = { argv0, child_argv0, child_argv1, NULL };
 	const int argc = 3;
+
+	reset_getopt_globals();
 
 	int exit_val = yoyo_main(argc, argv);
 
@@ -237,6 +256,8 @@ unsigned test_do_not_even_try_if_no_child(void)
 	const int argc = 2;
 	char *argv[3] = { "./yoyo", "--verbose=1", NULL };
 
+	reset_getopt_globals();
+
 	int exit_val = yoyo_main(argc, argv);
 
 	failures += Check(fork_count == 0, "expected 0 but was %u", fork_count);
@@ -255,7 +276,7 @@ int main(void)
 {
 	dev_null = fopen("/dev/null", "w");
 	if (!dev_null) {
-		fprintf(stderr, "%s: can't open /dev/null?\n", __FILE__);
+		fprintf(stderr, "\n%s: can't open /dev/null?\n", __FILE__);
 		return EXIT_FAILURE;
 	}
 

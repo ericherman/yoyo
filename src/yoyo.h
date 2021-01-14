@@ -90,5 +90,5 @@ void exit_reason_to_str(struct exit_reason *exit_reason, char *buf, size_t len);
 
 void parse_command_line(struct yoyo_options *options, int argc, char **argv);
 
-int yoyo_main(int argc, char **argv);
+int yoyo(int argc, char **argv);
 #endif /* YOYO_H */

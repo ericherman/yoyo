@@ -119,7 +119,7 @@ unsigned test_fake_fork(void)
 	yoyo_stderr = fbuf;
 
 	reset_getopt_globals();
-	int exit_val = yoyo_main(argc, argv);
+	int exit_val = yoyo(argc, argv);
 
 	fflush(fbuf);
 	fclose(fbuf);
@@ -187,7 +187,7 @@ unsigned test_help(void)
 
 	reset_getopt_globals();
 
-	int exit_val = yoyo_main(argc, argv);
+	int exit_val = yoyo(argc, argv);
 
 	fflush(fbuf);
 	fclose(fbuf);
@@ -234,7 +234,7 @@ unsigned test_version(void)
 
 	reset_getopt_globals();
 
-	int exit_val = yoyo_main(argc, argv);
+	int exit_val = yoyo(argc, argv);
 
 	fflush(fbuf);
 	fclose(fbuf);
@@ -278,7 +278,7 @@ unsigned test_failing_fork(void)
 
 	reset_getopt_globals();
 
-	int exit_val = yoyo_main(argc, argv);
+	int exit_val = yoyo(argc, argv);
 
 	failures += Check(fork_count == 1, "expected 1 but was %u", fork_count);
 
@@ -329,7 +329,7 @@ unsigned test_child_works_first_time(void)
 
 	reset_getopt_globals();
 
-	int exit_val = yoyo_main(argc, argv);
+	int exit_val = yoyo(argc, argv);
 
 	fflush(fbuf);
 	fclose(fbuf);
@@ -389,7 +389,7 @@ unsigned test_child_works_last_time(void)
 
 	reset_getopt_globals();
 
-	int exit_val = yoyo_main(argc, argv);
+	int exit_val = yoyo(argc, argv);
 
 	fflush(fbuf);
 	fclose(fbuf);
@@ -449,7 +449,7 @@ unsigned test_child_hangs_every_time(void)
 
 	reset_getopt_globals();
 
-	int exit_val = yoyo_main(argc, argv);
+	int exit_val = yoyo(argc, argv);
 
 	fflush(fbuf);
 	fclose(fbuf);
@@ -509,7 +509,7 @@ unsigned test_child_killed_every_time(void)
 
 	reset_getopt_globals();
 
-	int exit_val = yoyo_main(argc, argv);
+	int exit_val = yoyo(argc, argv);
 
 	fflush(fbuf);
 	fclose(fbuf);
@@ -553,7 +553,7 @@ unsigned test_do_not_even_try_if_no_child(void)
 	char *argv[3] = { "./yoyo", "--verbose=1", NULL };
 
 	reset_getopt_globals();
-	int exit_val = yoyo_main(argc, argv);
+	int exit_val = yoyo(argc, argv);
 
 	failures += Check(fork_count == 0, "expected 0 but was %u", fork_count);
 	failures +=

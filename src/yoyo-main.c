@@ -1,6 +1,6 @@
-int yoyo_main(int argc, char **argv);
+int yoyo(int argc, char **argv);
 
 int main(int argc, char **argv)
 {
-	return yoyo_main(argc, argv);
+	return yoyo(argc, argv);
 }

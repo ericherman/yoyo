@@ -90,7 +90,7 @@ void (*monitor_for_hang)(long child_pid, unsigned max_hangs,
 /* functions */
 int print_help(FILE *out, const char *name);
 
-int yoyo_main(int argc, char **argv)
+int yoyo(int argc, char **argv)
 {
 	struct yoyo_options options;
 	parse_command_line(&options, argc, argv);

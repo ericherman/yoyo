@@ -177,6 +177,49 @@ unsigned test_state_list_len_zero(void)
 	return failures;
 }
 
+unsigned test_state_list_pid_not_exists(void)
+{
+	unsigned failures = 0;
+
+	memset(mem, 0x00, sizeof(struct error_injecting_mem_context));
+
+	pid_t bogus_pid = -1;
+
+	char buf[250];
+	memset(buf, 0x00, 250);
+	FILE *fbuf = fmemopen(buf, 250, "w");
+	yoyo_verbose = 2;
+	yoyo_stdout = fbuf;
+	yoyo_stderr = fbuf;
+
+	struct state_list *sl = get_states(bogus_pid);
+
+	fflush(fbuf);
+	fclose(fbuf);
+	yoyo_verbose = 0;
+	yoyo_stdout = NULL;
+	yoyo_stderr = NULL;
+
+	const char *expect = "No such file or directory";
+	failures +=
+	    Check(strstr(buf, expect), "'%s' not in:\n%s\n", buf, expect);
+
+	failures += Check(sl, "state_list_new returned null");
+
+	state_list_free(sl);
+
+	failures +=
+	    Check(mem->frees == mem->allocs, "(frees %zu, allocs %zu)",
+		  mem->frees, mem->allocs);
+
+	failures +=
+	    Check(mem->free_bytes == mem->alloc_bytes,
+		  "(free_bytes %zu, alloc_bytes %zu)", mem->free_bytes,
+		  mem->alloc_bytes);
+
+	return failures;
+}
+
 unsigned test_state_list_new_first_error(void)
 {
 	unsigned failures = 0;
@@ -243,6 +286,7 @@ int main(void)
 	failures += run_test(test_state_list_new_no_errors);
 	failures += run_test(test_state_list_pid);
 	failures += run_test(test_state_list_len_zero);
+	failures += run_test(test_state_list_pid_not_exists);
 
 	yoyo_verbose = -1;
 	failures += run_test(test_state_list_new_first_error);

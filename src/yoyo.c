@@ -48,7 +48,7 @@
 
   Thus, we will need some global space to pass data between functions.
 */
-static struct exit_reason global_exit_reason;
+struct exit_reason global_exit_reason;
 
 /* global verbose, can be set via commandline options, or directly in tests */
 int yoyo_verbose = 0;
@@ -68,6 +68,7 @@ pid_t (*yoyo_fork)(void) = fork;
 int (*yoyo_execv)(const char *pathname, char *const argv[]) = execv;
 int (*yoyo_kill)(pid_t pid, int sig) = kill;
 unsigned int (*yoyo_sleep)(unsigned int seconds) = sleep;
+pid_t (*yoyo_waitpid)(pid_t pid, int *wstatus, int options) = waitpid;
 
 /* if the global yoyo_proc_fakeroot is non-null, it will be prepended before
  * '/proc' by get_states_proc(pid) */
@@ -364,7 +365,7 @@ void exit_reason_child_trap(int sig)
 	int wait_status = 0;
 	int options = 0;
 
-	pid_t pid = waitpid(any_child, &wait_status, options);
+	pid_t pid = yoyo_waitpid(any_child, &wait_status, options);
 
 	if (pid == global_exit_reason.child_pid) {
 		exit_reason_set(&global_exit_reason, pid, wait_status);

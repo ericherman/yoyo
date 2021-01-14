@@ -60,6 +60,14 @@ FILE *yoyo_stdout = NULL;
 FILE *yoyo_stderr = NULL;
 #define Ystderr (yoyo_stderr ? yoyo_stderr : stderr)
 
+#define Ylog(level, format, ...) \
+	do { \
+		if (yoyo_verbose >= level) { \
+			fflush(Ystdout); \
+			fprintf(Ystderr, format __VA_OPT__(,) __VA_ARGS__); \
+		} \
+	} while (0)
+
 /* global pointers to calloc(), free() provided for testing OOM and such */
 void *(*yoyo_calloc)(size_t nmemb, size_t size) = calloc;
 void (*yoyo_free)(void *ptr) = free;
@@ -113,9 +121,7 @@ int yoyo(int argc, char **argv)
 
 	// setup globals
 	yoyo_verbose = options.verbose;
-	if (yoyo_verbose > 0) {
-		fprintf(Ystdout, "yoyo_verbose: %d\n", yoyo_verbose);
-	}
+	Ylog(1, "yoyo_verbose: %d\n", yoyo_verbose);
 	yoyo_proc_fakeroot = options.fakeroot;
 
 	// setup global for sharing data with signal handler
@@ -138,50 +144,34 @@ int yoyo(int argc, char **argv)
 			return EXIT_FAILURE;
 		} else if (global_exit_reason.child_pid == 0) {
 			// in child process
-			if (yoyo_verbose > 0) {
-				for (int i = 0; i < child_command_line_len; ++i) {
-					fprintf(Ystdout, "%s ",
-						child_command_line[i]);
-				}
-				fprintf(Ystdout, "\n");
-				fflush(Ystdout);
+			for (int i = 0; i < child_command_line_len; ++i) {
+				Ylog(1, "%s ", child_command_line[i]);
 			}
+			Ylog(1, "\n");
 			return yoyo_execv(child_command_line[0],
 					  child_command_line);
 		}
 
-		if (yoyo_verbose > 0) {
-			fprintf(Ystdout, "child_pid: %ld\n",
-				(long)global_exit_reason.child_pid);
-		}
+		Ylog(1, "child_pid: %ld\n", (long)global_exit_reason.child_pid);
 
 		monitor_for_hang(global_exit_reason.child_pid, max_hangs,
 				 hang_check_interval);
 
 		if (global_exit_reason.exit_code != 0) {
-			if (yoyo_verbose >= 0) {
-				fprintf(Ystdout,
-					"Child exited with status %d\n",
-					global_exit_reason.exit_code);
-			}
+			Ylog(0, "Child exited with status %d\n",
+			     global_exit_reason.exit_code);
 		} else if (global_exit_reason.exited) {
-			if (yoyo_verbose >= 0) {
-				fprintf(Ystdout,
-					"Child completed successfully\n");
-			}
+			Ylog(0, "Child completed successfully\n");
 			return EXIT_SUCCESS;
 		} else {
 			char er_buf[250];
 			exit_reason_to_str(&global_exit_reason, er_buf, 250);
-			fprintf(Ystdout, "child %ld:\n%s\n",
-				(long)global_exit_reason.child_pid, er_buf);
+			Ylog(0, "child %ld:\n%s\n",
+			     (long)global_exit_reason.child_pid, er_buf);
 		}
 	}
 
-	if (yoyo_verbose >= 0) {
-		fflush(Ystdout);
-		fprintf(Ystderr, "Retries limit reached.\n");
-	}
+	Ylog(0, "Retries limit reached.\n");
 	return EXIT_FAILURE;
 }
 
@@ -247,9 +237,8 @@ char *slurp_text(char *buf, size_t buflen, const char *path)
 	size_t n = fread(buf, 1, buflen - 1, f);
 	fclose(f);
 
-	if (yoyo_verbose > 1) {
-		fprintf(Ystderr, "slurp_text: '%s'\n", buf);
-	}
+	Ylog(2, "slurp_text: '%s'\n", buf);
+
 	return n ? buf : NULL;
 }
 
@@ -322,9 +311,7 @@ struct state_list *get_states_proc(long pid)
 	char pattern[FILENAME_MAX + 3];
 	pid_to_stat_pattern(pattern, pid);
 
-	if (yoyo_verbose > 0) {
-		fprintf(Ystdout, "pattern == '%s'\n", pattern);
-	}
+	Ylog(1, "pattern == '%s'\n", pattern);
 
 	glob_t threads;
 	int (*errfunc)(const char *epath, int eerrno) = ignore_no_such_file;
@@ -332,9 +319,7 @@ struct state_list *get_states_proc(long pid)
 	glob(pattern, GLOB_MARK, errfunc, &threads);
 
 	size_t len = threads.gl_pathc;
-	if (yoyo_verbose > 0) {
-		fprintf(Ystdout, "matches for %ld: %zu\n", pid, len);
-	}
+	Ylog(1, "matches for %ld: %zu\n", pid, len);
 	struct state_list *sl = state_list_new(len);
 	/* by inspection, does the right thing (exits on malloc failure),
 	 * no intention test --eric.herman 2020-12-31 */
@@ -347,9 +332,7 @@ struct state_list *get_states_proc(long pid)
 	int err = 0;
 	for (size_t i = 0; i < len; ++i) {
 		const char *path = threads.gl_pathv[i];
-		if (yoyo_verbose > 0) {
-			fprintf(Ystdout, "\t%s\n", path);
-		}
+		Ylog(1, "\t%s\n", path);
 		struct thread_state *ts = &sl->states[i];
 		err += thread_state_from_path(ts, path);
 	}
@@ -365,9 +348,7 @@ struct state_list *get_states_proc(long pid)
 
 void exit_reason_child_trap(int sig)
 {
-	if (yoyo_verbose > 0) {
-		fprintf(Ystdout, "exit_reason_child_trap(%d)\n", sig);
-	}
+	Ylog(1, "exit_reason_child_trap(%d)\n", sig);
 
 	pid_t any_child = -1;
 	int wait_status = 0;
@@ -379,14 +360,14 @@ void exit_reason_child_trap(int sig)
 		exit_reason_set(&global_exit_reason, pid, wait_status);
 	}
 
-	if (yoyo_verbose > 0) {
+	if (yoyo_verbose >= 1) {
 		struct exit_reason tmp;
 		exit_reason_set(&tmp, pid, wait_status);
 		size_t len = 255;
 		char buf[len];
 		exit_reason_to_str(&tmp, buf, len);
-		fprintf(Ystdout, "exit_reason_child_trap(%d) (%d): %s\n", sig,
-			wait_status, buf);
+		Ylog(1, "exit_reason_child_trap(%d) (%d): %s\n", sig,
+		     wait_status, buf);
 	}
 }
 
@@ -417,10 +398,9 @@ void monitor_child_for_hang(long child_pid, unsigned max_hangs,
 	while (pid_exists(child_pid)) {
 		unsigned int seconds = hang_check_interval;
 		unsigned int seconds_remaining = yoyo_sleep(seconds);
-		if (seconds_remaining && yoyo_verbose > 0) {
-			fprintf(Ystdout,
-				"Interrupted with %u seconds remaining.\n",
-				seconds_remaining);
+		if (seconds_remaining) {
+			Ylog(1, "Interrupted with %u seconds remaining.\n",
+			     seconds_remaining);
 		}
 		struct state_list *previous = thread_states;
 		struct state_list *current = get_states(child_pid);
@@ -444,10 +424,8 @@ void monitor_child_for_hang(long child_pid, unsigned max_hangs,
 			}
 		} else {
 			hang_count = 0;
-			if (yoyo_verbose > 0) {
-				fprintf(Ystdout, "Child still appears to be"
-					" doing something worthwhile\n");
-			}
+			Ylog(1, "Child still appears to be"
+			     " doing something worthwhile\n");
 		}
 		free_states(previous);
 		if (thread_states != current) {

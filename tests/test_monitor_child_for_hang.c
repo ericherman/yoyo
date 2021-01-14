@@ -12,6 +12,11 @@ extern struct state_list *(*get_states) (long pid);
 extern void (*free_states)(struct state_list *l);
 
 #include <stdio.h>
+
+extern int yoyo_verbose;
+extern FILE *yoyo_stdout;
+extern FILE *yoyo_stderr;
+
 #include <string.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -105,11 +110,39 @@ unsigned test_monitor_requires_sigkill(void)
 	unsigned max_hangs = 3;
 	unsigned hang_check_interval = 60;
 
+	const size_t buflen = 80 * 24;
+	char buf[80 * 24];
+	memset(buf, 0x00, buflen);
+	FILE *fbuf = fmemopen(buf, buflen, "w");
+	yoyo_stdout = fbuf;
+	yoyo_stderr = fbuf;
+	yoyo_verbose = 1;
+
 	monitor_child_for_hang(child_pid, max_hangs, hang_check_interval);
+
+	fflush(fbuf);
+	fclose(fbuf);
+	yoyo_stdout = NULL;
+	yoyo_stderr = NULL;
 
 	failures += Check(ctx->sig_term_count, "expected term");
 
 	failures += Check(ctx->sig_kill_count, "expected kill");
+
+	const char *expect = "doing something worthwhile";
+	failures +=
+	    Check(strstr(buf, expect), "'%s' not found in: %s\n\n", expect,
+		  buf);
+
+	expect = "kill(child_pid, SIGTERM)";
+	failures +=
+	    Check(strstr(buf, expect), "'%s' not found in: %s\n\n", expect,
+		  buf);
+
+	expect = "kill(child_pid, SIGKILL)";
+	failures +=
+	    Check(strstr(buf, expect), "'%s' not found in: %s\n\n", expect,
+		  buf);
 
 	failures +=
 	    Check(ctx->free_states_count == ctx->get_states_count,
@@ -223,7 +256,7 @@ unsigned int faux_sleep(unsigned int seconds)
 	}
 
 	if (check_for_proc_end()) {
-		return 1;
+		return seconds;
 	}
 
 	/* maybe update some counters */
@@ -244,6 +277,7 @@ unsigned int faux_sleep(unsigned int seconds)
 		for (size_t i = 0; i < ctx->templates->len; ++i) {
 			ctx->templates->states[i].state = 'S';
 		}
+		return 1;
 	}
 
 	return 0;

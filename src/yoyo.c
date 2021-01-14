@@ -428,7 +428,7 @@ void monitor_child_for_hang(long child_pid, unsigned max_hangs,
 					const char *sigstr = (sig == SIGKILL)
 					    ? "SIGKILL" : "SIGTERM";
 					Errorf
-					    ("kill(child_pid, %d) returned %d",
+					    ("kill(child_pid, %s) returned %d",
 					     sigstr, err);
 				}
 				yoyo_sleep(0);	// yield after kill

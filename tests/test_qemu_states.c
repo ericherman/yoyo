@@ -12,7 +12,7 @@
 #include <stdlib.h>
 
 const unsigned hang_check_interval = 60;
-size_t max_hangs = 5;
+const size_t max_hangs = 5;
 
 const pid_t child_pid = 1754993;
 

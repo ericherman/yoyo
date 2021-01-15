@@ -191,7 +191,7 @@ unsigned test_qemu_hung(void)
 	return failures;
 }
 
-unsigned test_qemu_active_state_4(void)
+unsigned test_qemu_last_state_big_counter_increase(void)
 {
 	unsigned failures = 0;
 
@@ -351,7 +351,7 @@ int main(void)
 	free_states = faux_free_states;
 
 	failures += run_test(test_qemu_hung);
-	failures += run_test(test_qemu_active_state_4);
+	failures += run_test(test_qemu_last_state_big_counter_increase);
 
 	return failures_to_status("test_qemu_states", failures);
 }

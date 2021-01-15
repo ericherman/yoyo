@@ -347,7 +347,7 @@ unsigned test_child_works_first_time(void)
 
 	failures += Check(exit_val == 0, "expected zero, but was %d", exit_val);
 
-	const char *expect = "Child completed successfully";
+	const char *expect = "completed successfully";
 	failures +=
 	    Check(strstr(buf, expect), "'%s' not in: %s\n", expect, buf);
 
@@ -407,7 +407,7 @@ unsigned test_child_works_last_time(void)
 
 	failures += Check(exit_val == 0, "expected zero, but was %d", exit_val);
 
-	const char *expect = "Child completed successfully";
+	const char *expect = "completed successfully";
 	failures +=
 	    Check(strstr(buf, expect), "'%s' not in: %s\n", expect, buf);
 

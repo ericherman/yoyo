@@ -152,25 +152,29 @@ int yoyo(int argc, char **argv)
 					  child_command_line);
 		}
 
-		Ylog(1, "child_pid: %ld\n", (long)global_exit_reason.child_pid);
+		Ylog(1, "'%s' child_pid: %ld\n", child_command_line[0],
+		     (long)global_exit_reason.child_pid);
 
 		monitor_for_hang(global_exit_reason.child_pid, max_hangs,
 				 hang_check_interval);
 
 		if (global_exit_reason.exit_code != 0) {
-			Ylog(0, "Child exited with status %d\n",
+			Ylog(0, "Child '%s' exited with status %d\n",
+			     child_command_line[0],
 			     global_exit_reason.exit_code);
 		} else if (global_exit_reason.exited) {
-			Ylog(0, "Child completed successfully\n");
+			Ylog(0, "Child '%s' completed successfully\n",
+			     child_command_line[0]);
 			return EXIT_SUCCESS;
 		} else {
 			char er_buf[250];
 			exit_reason_to_str(&global_exit_reason, er_buf, 250);
-			Ylog(0, "child %ld:\n%s\n",
+			Ylog(0, "child '%s' %ld:\n%s\n", child_command_line[0],
 			     (long)global_exit_reason.child_pid, er_buf);
 		}
 	}
 
+	Ylog(0, "'%s' failed.\n", child_command_line[0]);
 	Ylog(0, "Retries limit reached.\n");
 	return EXIT_FAILURE;
 }

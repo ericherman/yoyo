@@ -302,7 +302,7 @@ check-acceptance-fail-one-then-succeed: build/$(YOYO_BIN) build/faux-rogue
 		--wait-interval=$(WAIT_INTERVAL) \
 		$(YOYO_OPTS) ./build/faux-rogue $(FIXTURE_SLEEP) \
 		>$@.out 2>&1
-	grep 'Child exited with status 127' $@.out
+	grep 'exited with status 127' $@.out
 	grep '(succeed)' $@.out
 	grep 0 tmp.$@.failcount
 	rm -f tmp.$@.failcount $@.out
@@ -318,7 +318,7 @@ debug-check-acceptance-fail-one-then-succeed: debug/$(YOYO_BIN) debug/faux-rogue
 		--verbose=2 \
 		$(YOYO_OPTS) ./debug/faux-rogue $(FIXTURE_SLEEP) \
 		>$@.out 2>&1
-	grep 'Child exited with status 127' $@.out
+	grep 'exited with status 127' $@.out
 	grep '(succeed)' $@.out
 	grep 0 tmp.$@.failcount
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
@@ -489,7 +489,7 @@ check-code-coverage: html-report
 coverage: html-report
 	$(BROWSER) ./coverage_html/src/yoyo.c.gcov.html
 
-check: check-unit check-code-coverage
+check: default check-unit check-code-coverage
 	@echo "SUCCESS! ($@)"
 
 debug-check: debug-check-unit

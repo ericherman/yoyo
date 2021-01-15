@@ -66,6 +66,7 @@ build/test_yoyo_parse_command_line: build/yoyo.o build/test-util.o \
 
 check_yoyo_parse_command_line: build/test_yoyo_parse_command_line
 	./build/test_yoyo_parse_command_line
+	@echo "SUCCESS! ($@)"
 
 debug/test_yoyo_parse_command_line: debug/yoyo.o debug/test-util.o \
 		tests/test_yoyo_parse_command_line.c
@@ -83,6 +84,7 @@ build/test_process_looks_hung: build/yoyo.o build/test-util.o \
 
 check_process_looks_hung: build/test_process_looks_hung
 	./build/test_process_looks_hung
+	@echo "SUCCESS! ($@)"
 
 debug/test_process_looks_hung: debug/yoyo.o debug/test-util.o \
 		tests/test_process_looks_hung.c
@@ -93,6 +95,7 @@ debug_check_process_looks_hung: debug/test_process_looks_hung
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
 	rm -f $@.out
+	@echo "SUCCESS! ($@)"
 
 build/test_qemu_states: build/yoyo.o build/test-util.o \
 		tests/test_qemu_states.c
@@ -100,6 +103,7 @@ build/test_qemu_states: build/yoyo.o build/test-util.o \
 
 check_qemu_states: build/test_qemu_states
 	./build/test_qemu_states
+	@echo "SUCCESS! ($@)"
 
 debug/test_qemu_states: debug/yoyo.o debug/test-util.o \
 		tests/test_qemu_states.c
@@ -110,6 +114,7 @@ debug_check_qemu_states: debug/test_qemu_states
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
 	rm -f $@.out
+	@echo "SUCCESS! ($@)"
 
 build/test_monitor_child_for_hang: build/yoyo.o build/test-util.o \
 		tests/test_monitor_child_for_hang.c
@@ -117,6 +122,7 @@ build/test_monitor_child_for_hang: build/yoyo.o build/test-util.o \
 
 check_monitor_child_for_hang: build/test_monitor_child_for_hang
 	./build/test_monitor_child_for_hang
+	@echo "SUCCESS! ($@)"
 
 debug/test_monitor_child_for_hang: debug/yoyo.o debug/test-util.o \
 		tests/test_monitor_child_for_hang.c
@@ -127,7 +133,7 @@ debug_check_monitor_child_for_hang: debug/test_monitor_child_for_hang
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
 	rm -f $@.out
-
+	@echo "SUCCESS! ($@)"
 
 build/test_slurp_text: build/yoyo.o build/test-util.o \
 		tests/test_slurp_text.c
@@ -135,6 +141,7 @@ build/test_slurp_text: build/yoyo.o build/test-util.o \
 
 check_slurp_text: build/test_slurp_text
 	./build/test_slurp_text
+	@echo "SUCCESS! ($@)"
 
 debug/test_slurp_text: debug/yoyo.o debug/test-util.o \
 		tests/test_slurp_text.c
@@ -145,6 +152,7 @@ debug_check_slurp_text: debug/test_slurp_text
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
 	rm -f $@.out
+	@echo "SUCCESS! ($@)"
 
 build/test_state_list_new: build/yoyo.o build/test-util.o \
 		tests/test_state_list_new.c
@@ -152,6 +160,7 @@ build/test_state_list_new: build/yoyo.o build/test-util.o \
 
 check_state_list_new: build/test_state_list_new
 	./build/test_state_list_new
+	@echo "SUCCESS! ($@)"
 
 debug/test_state_list_new: debug/yoyo.o debug/test-util.o \
 		tests/test_state_list_new.c
@@ -162,6 +171,7 @@ debug_check_state_list_new: debug/test_state_list_new
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
 	rm -f $@.out
+	@echo "SUCCESS! ($@)"
 
 build/test_yoyo_main: build/yoyo.o build/test-util.o \
 		tests/test_yoyo_main.c
@@ -169,6 +179,7 @@ build/test_yoyo_main: build/yoyo.o build/test-util.o \
 
 check_yoyo_main: build/test_yoyo_main
 	./build/test_yoyo_main
+	@echo "SUCCESS! ($@)"
 
 debug/test_yoyo_main: debug/yoyo.o debug/test-util.o \
 		tests/test_yoyo_main.c
@@ -179,6 +190,7 @@ debug_check_yoyo_main: debug/test_yoyo_main
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
 	rm -f $@.out
+	@echo "SUCCESS! ($@)"
 
 build/test_exit_reason: build/yoyo.o build/test-util.o \
 		tests/test_exit_reason.c
@@ -186,6 +198,7 @@ build/test_exit_reason: build/yoyo.o build/test-util.o \
 
 check_exit_reason: build/test_exit_reason
 	./build/test_exit_reason
+	@echo "SUCCESS! ($@)"
 
 debug/test_exit_reason: debug/yoyo.o debug/test-util.o \
 		tests/test_exit_reason.c
@@ -196,6 +209,7 @@ debug_check_exit_reason: debug/test_exit_reason
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
 	rm -fv $@.out
+	@echo "SUCCESS! ($@)"
 
 check-unit: check_yoyo_parse_command_line \
 		check_exit_reason \

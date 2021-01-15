@@ -506,9 +506,6 @@ coverage: html-report
 check: default check-unit check-code-coverage
 	@echo "SUCCESS! ($@)"
 
-debug-check: debug-check-unit
-	@echo "SUCCESS! ($@)"
-
 check-all: check check-acceptance html-report
 	@echo "SUCCESS! ($@)"
 

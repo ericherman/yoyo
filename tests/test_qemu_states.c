@@ -212,6 +212,48 @@ unsigned test_qemu_last_state_big_counter_increase(void)
 	return failures;
 }
 
+unsigned test_qemu_last_state_running(void)
+{
+	unsigned failures = 0;
+
+	copy_qemu_states_to_global_context(&failures);
+
+	/* make the last state active enough to not look hung */
+	size_t last = ctx->state_lists_len - 1;
+	ctx->state_lists[last]->states[9].state = 'R';
+
+	monitor_child_for_hang(child_pid, max_hangs, hang_check_interval);
+
+	/* fail if it _does_ look hung */
+	failures +=
+	    Check(!ctx->looks_hung, "expected not-hung, but was %u",
+		  ctx->looks_hung);
+
+	free_global_context();
+	return failures;
+}
+
+unsigned test_qemu_middle_state_big_counter_increase(void)
+{
+	unsigned failures = 0;
+
+	copy_qemu_states_to_global_context(&failures);
+
+	/* make the middle state active enough to not look hung */
+	size_t mid = ctx->state_lists_len / 2;
+	ctx->state_lists[mid]->states[4].utime += 10;
+
+	monitor_child_for_hang(child_pid, max_hangs, hang_check_interval);
+
+	/* fail if it _does_ look hung */
+	failures +=
+	    Check(!ctx->looks_hung, "expected not-hung, but was %u",
+		  ctx->looks_hung);
+
+	free_global_context();
+	return failures;
+}
+
 /* Test Fixture Functions */
 void *calloc_or_die(const char *file, const char *func, int line, size_t nmemb,
 		    size_t size)
@@ -352,6 +394,8 @@ int main(void)
 
 	failures += run_test(test_qemu_hung);
 	failures += run_test(test_qemu_last_state_big_counter_increase);
+	failures += run_test(test_qemu_last_state_running);
+	failures += run_test(test_qemu_middle_state_big_counter_increase);
 
 	return failures_to_status("test_qemu_states", failures);
 }

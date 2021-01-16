@@ -1,0 +1,3 @@
+* change signal to sigaction
+* write a README
+* keep track of status for printing a summary at yoyo exit

@@ -7,18 +7,6 @@
 
 #include <stddef.h>		/* size_t */
 
-struct yoyo_options {
-	int version;
-	int help;
-	int verbose;
-	int hang_check_interval;
-	int max_hangs;
-	int max_retries;
-	const char *fakeroot;
-	char **child_command_line;
-	int child_command_line_len;
-};
-
 struct thread_state {
 	/* According to POSIX, pid_t is a signed int no wider than long */
 	long pid;
@@ -93,8 +81,6 @@ void exit_reason_set(struct exit_reason *exit_reason, long pid,
 
 /* populate buf with a human-friendly-ish description of the exit_reason */
 void exit_reason_to_str(struct exit_reason *exit_reason, char *buf, size_t len);
-
-void parse_command_line(struct yoyo_options *options, int argc, char **argv);
 
 int yoyo(int argc, char **argv);
 

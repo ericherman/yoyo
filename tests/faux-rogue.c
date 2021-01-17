@@ -15,7 +15,7 @@ enum action_type get_action(const char *failpath)
 		FILE *failfile = fopen(failpath, "r+");
 		if (failfile) {
 			if (fscanf(failfile, "%d", &failcount) != 1) {
-				fprintf(stderr, "%s",
+				fprintf(stderr, "%s:%d %s", __FILE__, __LINE__,
 					"failcount not found in failfile\n");
 			}
 			int remaining = 0;
@@ -34,13 +34,16 @@ enum action_type get_action(const char *failpath)
 	enum action_type action;
 	if (failcount < 0) {
 		action = hang;
-		fprintf(stderr, "hang count: %d\n", -failcount);
+		fprintf(stderr, "%s:%d hang count: %d\n", __FILE__, __LINE__,
+			-failcount);
 	} else if (failcount > 0) {
 		action = fail;
-		fprintf(stderr, "fail count: %d\n", failcount);
+		fprintf(stderr, "%s:%d fail count: %d\n", __FILE__, __LINE__,
+			failcount);
 	} else {
 		action = succeed;
-		fprintf(stderr, "fail/hang count: 0 (succeed)\n");
+		fprintf(stderr, "%s:%d fail/hang count: 0 (succeed)\n",
+			__FILE__, __LINE__);
 	}
 
 	return action;

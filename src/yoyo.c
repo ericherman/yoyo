@@ -26,7 +26,7 @@
 #include <unistd.h>		/* execv, fork */
 
 #define YOYO_NAME "yoyo"
-#define YOYO_VERSION "0.99.0"
+#define YOYO_VERSION "0.99.1"
 
 const int default_hang_check_interval = 60;
 const int default_max_hangs = 5;

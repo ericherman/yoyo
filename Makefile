@@ -242,14 +242,14 @@ debug/faux-rogue: tests/faux-rogue.c
 yoyo-version: ./build/yoyo
 	@echo
 	./build/yoyo --version >$@.out 2>&1
-	grep -q '0.99.0' $@.out
+	grep -q '0.99.1' $@.out
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
 valgrind-yoyo-version: ./debug/yoyo
 	@echo
 	$(VALGRIND) ./debug/yoyo --version >$@.out 2>&1
-	grep -q '0.99.0' $@.out
+	grep -q '0.99.1' $@.out
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
 	rm -f $@.out

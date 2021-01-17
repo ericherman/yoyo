@@ -118,6 +118,13 @@ int yoyo(int argc, char **argv)
 	int max_hangs = options.max_hangs;
 	int hang_check_interval = options.hang_check_interval;
 
+	size_t buflen = 80;
+	char buf[buflen];
+	const size_t summary_len = (max_retries + 2) * (buflen + 1);
+	char summary[summary_len];
+	memset(summary, 0x00, summary_len);
+	strcat(summary, "yoyo result summary:\n");
+
 	// setup globals
 	yoyo_verbose = options.verbose;
 	Ylog(1, "yoyo_verbose: %d\n", yoyo_verbose);
@@ -159,23 +166,34 @@ int yoyo(int argc, char **argv)
 				 hang_check_interval);
 
 		if (global_exit_reason.exit_code != 0) {
-			Ylog(0, "Child '%s' exited with status %d\n",
-			     child_command_line[0],
-			     global_exit_reason.exit_code);
+			snprintf(buf, buflen,
+				 "Child '%s' exited with status %d\n",
+				 child_command_line[0],
+				 global_exit_reason.exit_code);
+			Ylog(0, "%s", buf);
+			strcat(summary, buf);
 		} else if (global_exit_reason.exited) {
-			Ylog(0, "Child '%s' completed successfully\n",
-			     child_command_line[0]);
+			snprintf(buf, buflen,
+				 "Child '%s' completed successfully\n",
+				 child_command_line[0]);
+			Ylog(0, "%s", buf);
+			strcat(summary, buf);
+			Ylog_append(0, "%s", summary);
 			return EXIT_SUCCESS;
 		} else {
 			char er_buf[250];
 			exit_reason_to_str(&global_exit_reason, er_buf, 250);
-			Ylog(0, "child '%s' %ld:\n%s\n", child_command_line[0],
-			     (long)global_exit_reason.child_pid, er_buf);
+			Ylog(0, "exit reason:%s\n", er_buf);
+
+			snprintf(buf, buflen, "Child '%s' ended oddly\n",
+				 child_command_line[0]);
+			Ylog(0, "%s", buf);
+			strcat(summary, buf);
 		}
 	}
-
 	Ylog(0, "'%s' failed.\n", child_command_line[0]);
-	Ylog(0, "Retries limit reached.\n");
+	Ylog_append(0, "%s", summary);
+	Ylog_append(0, "Retries limit reached.\n");
 	return EXIT_FAILURE;
 }
 

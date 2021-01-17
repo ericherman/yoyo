@@ -263,7 +263,7 @@ check-acceptance-succeed-first-try: build/yoyo build/faux-rogue
 	@echo
 	@echo "succeed first try"
 	echo "0" > tmp.$@.failcount
-	HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
+	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
 	./build/yoyo \
 		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
@@ -275,8 +275,8 @@ valgrind-check-acceptance-succeed-first-try: debug/yoyo debug/faux-rogue
 	@echo
 	@echo "succeed first try"
 	echo "0" > tmp.$@.failcount
-	HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	VERBOSE=2 \
+	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
+	YOYO_VERBOSE=2 \
 	$(VALGRIND) ./debug/yoyo \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
@@ -290,7 +290,7 @@ check-acceptance-fail-one-then-succeed: build/yoyo build/faux-rogue
 	@echo
 	@echo "fail once, then succeed"
 	echo "1" > tmp.$@.failcount
-	HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
+	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
 	./build/yoyo \
 		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
@@ -304,8 +304,8 @@ valgrind-check-acceptance-fail-one-then-succeed: debug/yoyo debug/faux-rogue
 	@echo
 	@echo "fail once, then succeed"
 	echo "1" > tmp.$@.failcount
-	HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	VERBOSE=2 \
+	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
+	YOYO_VERBOSE=2 \
 	$(VALGRIND) ./debug/yoyo \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
@@ -321,7 +321,7 @@ check-acceptance-succeed-after-long-time: build/yoyo build/faux-rogue
 	@echo
 	@echo "succeed after a long time"
 	echo "0" > tmp.$@.failcount
-	HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
+	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
 	./build/yoyo \
 		./build/faux-rogue $(FIXTURE_SLEEP_LONG) tmp.$@.failcount \
 		>$@.out 2>&1
@@ -333,8 +333,8 @@ valgrind-check-acceptance-succeed-after-long-time: debug/yoyo debug/faux-rogue
 	@echo
 	@echo "succeed after a long time"
 	echo "0" > tmp.$@.failcount
-	HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	VERBOSE=2 \
+	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
+	YOYO_VERBOSE=2 \
 	$(VALGRIND) ./debug/yoyo \
 		./debug/faux-rogue $(FIXTURE_SLEEP_LONG) tmp.$@.failcount \
 		>$@.out 2>&1
@@ -347,7 +347,7 @@ valgrind-check-acceptance-succeed-after-long-time: debug/yoyo debug/faux-rogue
 check-acceptance-hang-twice-then-succeed: build/yoyo build/faux-rogue
 	echo "./build/faux-rogue will hang twice"
 	echo "-2" > tmp.$@.failcount
-	HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
+	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
 	./build/yoyo \
 		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
@@ -359,8 +359,8 @@ check-acceptance-hang-twice-then-succeed: build/yoyo build/faux-rogue
 valgrind-check-acceptance-hang-twice-then-succeed: debug/yoyo debug/faux-rogue
 	echo "./debug/faux-rogue will hang twice"
 	echo "-2" > tmp.$@.failcount
-	HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	VERBOSE=2 \
+	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
+	YOYO_VERBOSE=2 \
 	$(VALGRIND) ./debug/yoyo \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
@@ -375,10 +375,10 @@ check-acceptance-fail-every-time: build/yoyo build/faux-rogue
 	@echo
 	echo "now ./build/faux-rogue will hang every time"
 	echo "100" > tmp.$@.failcount
-	-( HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	   VERBOSE=2 \
+	-( YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
+	   YOYO_VERBOSE=2 \
 	   MAX_HANGS=3 \
-	   MAX_RETRIES=2 \
+	   YOYO_MAX_RETRIES=2 \
 	   ./build/yoyo \
 		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1 )
@@ -390,10 +390,10 @@ valgrind-check-acceptance-fail-every-time: debug/yoyo debug/faux-rogue
 	@echo
 	echo "now ./debug/faux-rogue will hang every time"
 	echo "100" > tmp.$@.failcount
-	-( HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	   VERBOSE=2 \
-	   MAX_HANGS=3 \
-	   MAX_RETRIES=2 \
+	-( YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
+	   YOYO_VERBOSE=2 \
+	   YOYO_MAX_HANGS=3 \
+	   YOYO_MAX_RETRIES=2 \
 	   ./debug/yoyo \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1 )
@@ -407,10 +407,10 @@ check-acceptance-hang-every-time: build/yoyo build/faux-rogue
 	@echo
 	echo "now ./build/faux-rogue will hang every time"
 	echo "-100" > tmp.$@.failcount
-	-( HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	   VERBOSE=2 \
-	   MAX_HANGS=3 \
-	   MAX_RETRIES=2 \
+	-( YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
+	   YOYO_VERBOSE=2 \
+	   YOYO_MAX_HANGS=3 \
+	   YOYO_MAX_RETRIES=2 \
 	   ./build/yoyo \
 		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1 )
@@ -422,10 +422,10 @@ valgrind-check-acceptance-hang-every-time: debug/yoyo debug/faux-rogue
 	@echo
 	echo "now ./debug/faux-rogue will hang every time"
 	echo "-100" > tmp.$@.failcount
-	-( HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	   VERBOSE=2 \
-	   MAX_HANGS=3 \
-	   MAX_RETRIES=2 \
+	-( YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
+	   YOYO_VERBOSE=2 \
+	   YOYO_MAX_HANGS=3 \
+	   YOYO_MAX_RETRIES=2 \
 	   $(VALGRIND) ./debug/yoyo \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1 )

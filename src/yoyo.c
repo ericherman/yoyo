@@ -25,7 +25,7 @@
 #include <sys/wait.h>		/* waitpid */
 #include <unistd.h>		/* execv, fork */
 
-const char *yoyo_version = "0.99.1";
+const char *yoyo_version = "0.99.2";
 
 const int default_hang_check_interval = 60;
 const int default_max_hangs = 5;
@@ -110,10 +110,12 @@ int yoyo(int argc, char **argv)
 		fprintf(Ystdout, "yoyo %s\n", yoyo_version);
 		return EXIT_SUCCESS;
 	}
-	int max_retries = yoyo_env_default(default_max_retries, "MAX_RETRIES");
-	int max_hangs = yoyo_env_default(default_max_retries, "MAX_HANGS");
+	int max_retries = yoyo_env_default(default_max_retries,
+					   "YOYO_MAX_RETRIES");
+	int max_hangs = yoyo_env_default(default_max_retries,
+					 "YOYO_MAX_HANGS");
 	int hang_check_interval = yoyo_env_default(default_hang_check_interval,
-						   "HANG_CHECK_INTERVAL");
+						   "YOYO_HANG_CHECK_INTERVAL");
 
 	char **child_command_line = argv + 1;
 	int child_command_line_len = argc - 1;
@@ -126,7 +128,7 @@ int yoyo(int argc, char **argv)
 	strcat(summary, "yoyo result summary:\n");
 
 	// setup globals
-	yoyo_verbose = yoyo_env_default(yoyo_verbose, "VERBOSE");
+	yoyo_verbose = yoyo_env_default(yoyo_verbose, "YOYO_VERBOSE");
 	Ylog(1, "yoyo_verbose: %d\n", yoyo_verbose);
 
 	// setup global for sharing data with signal handler

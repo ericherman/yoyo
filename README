@@ -1,0 +1,40 @@
+yoyo provides a simple way to run a program, possibly multiple times,
+restarting it if it crashes or hangs. This can be helpful when running
+restartable long-running programs that sometimes encounter transient or
+ephemeral issues, but often run successfully to completion if run
+multiple times.
+
+If the target program...
+
+- terminates successfully (with a 0 exit status), yoyo terminates
+  successfully as well.
+- terminates with a non-zero exit status, yoyo will log a message and
+  restart it.
+- appears to be hung, based on an analysis of the process statistics in
+  /proc, yoyo will log a message, terminate it, and restart it.
+
+Processes are assumed to be hung if, every time yoyo checks the process
+statistics, the same set of tasks is present; all tasks are in Sleeping
+state; and the utime and stime counters for all threads are incrementing
+slowly (that is, by no more than 5 clock ticks).
+
+By default, yoyo polls for process statistics every 60 seconds, assumes
+a process is hung if these conditions are true for six polls in a row,
+and will restart the target program up to five times.
+
+To override these defaults, environment variables can be used:
+
+- YOYO_HANG_CHECK_INTERVAL defines the number of seconds yoyo will wait
+  between checking process statistics;
+- YOYO_MAX_HANGS defines the number of times yoyo must observe that a
+  process appears inactive before killing it; and
+- YOYO_MAX_RETRIES defines the number of times that yoyo will restart
+  its target program.
+
+Also, YOYO_VERBOSE can be used to specify how verbose yoyo should be
+about what it is observing and what actions it is taking:
+
+- A YOYO_VERBOSE level of -1 ...
+- A YOYO_VERBOSE level of 0 ...
+- A YOYO_VERBOSE level of 1 ...
+- A YOYO_VERBOSE level of 2 ...

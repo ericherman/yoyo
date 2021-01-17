@@ -11,8 +11,8 @@
 #include <signal.h>
 #include <stdlib.h>
 
-const unsigned hang_check_interval = 60;
-const size_t max_hangs = 5;
+extern const int default_hang_check_interval;
+extern const int default_max_hangs;
 
 const pid_t child_pid = 1754993;
 
@@ -156,8 +156,8 @@ struct state_list *hung_qemu_frames[] = {
 	&qemu_state_list_2,	/* looks hung 2 */
 	&qemu_state_list_3,	/* looks hung 3 */
 	&qemu_state_list_4,	/* looks hung 4 */
-	&qemu_state_list_5,	/* looks hung 5 == 5 (max_hangs) */
-	&qemu_state_list_6,	/* is hung 6 > 5 (exceeds max_hangs!) */
+	&qemu_state_list_5,	/* looks hung 5 == 5 (default_max_hangs) */
+	&qemu_state_list_6,	/* is hung 6 > 5 (exceeds default_max_hangs!) */
 };
 
 struct monitor_child_context {
@@ -182,7 +182,8 @@ unsigned test_qemu_hung(void)
 
 	copy_qemu_states_to_global_context(&failures);
 
-	monitor_child_for_hang(child_pid, max_hangs, hang_check_interval);
+	monitor_child_for_hang(child_pid, default_max_hangs,
+			       default_hang_check_interval);
 
 	/* fail if it does _not_ look hung */
 	failures += Check(ctx->looks_hung, "expected non-zero hung");
@@ -201,7 +202,8 @@ unsigned test_qemu_last_state_big_counter_increase(void)
 	size_t last = ctx->state_lists_len - 1;
 	ctx->state_lists[last]->states[9].utime += 10;
 
-	monitor_child_for_hang(child_pid, max_hangs, hang_check_interval);
+	monitor_child_for_hang(child_pid, default_max_hangs,
+			       default_hang_check_interval);
 
 	/* fail if it _does_ look hung */
 	failures +=
@@ -222,7 +224,8 @@ unsigned test_qemu_last_state_running(void)
 	size_t last = ctx->state_lists_len - 1;
 	ctx->state_lists[last]->states[9].state = 'R';
 
-	monitor_child_for_hang(child_pid, max_hangs, hang_check_interval);
+	monitor_child_for_hang(child_pid, default_max_hangs,
+			       default_hang_check_interval);
 
 	/* fail if it _does_ look hung */
 	failures +=
@@ -243,7 +246,8 @@ unsigned test_qemu_middle_state_big_counter_increase(void)
 	size_t mid = ctx->state_lists_len / 2;
 	ctx->state_lists[mid]->states[4].utime += 10;
 
-	monitor_child_for_hang(child_pid, max_hangs, hang_check_interval);
+	monitor_child_for_hang(child_pid, default_max_hangs,
+			       default_hang_check_interval);
 
 	/* fail if it _does_ look hung */
 	failures +=

@@ -11,6 +11,8 @@ extern unsigned int (*yoyo_sleep)(unsigned int seconds);
 extern struct state_list *(*get_states) (long pid);
 extern void (*free_states)(struct state_list *l);
 
+extern const int default_hang_check_interval;
+
 #include <stdio.h>
 
 extern int yoyo_verbose;
@@ -64,7 +66,7 @@ unsigned test_monitor_and_exit_after_4(void)
 	ctx->get_states_sleeping_after = 2;
 
 	unsigned max_hangs = 3;
-	unsigned hang_check_interval = 60;
+	unsigned hang_check_interval = default_hang_check_interval;
 
 	monitor_child_for_hang(child_pid, max_hangs, hang_check_interval);
 
@@ -108,7 +110,7 @@ unsigned test_monitor_requires_sigkill(void)
 	ctx->sig_kill_count_to_set_exited = 1;
 
 	unsigned max_hangs = 3;
-	unsigned hang_check_interval = 60;
+	unsigned hang_check_interval = default_hang_check_interval;
 
 	const size_t buflen = 80 * 24;
 	char buf[80 * 24];

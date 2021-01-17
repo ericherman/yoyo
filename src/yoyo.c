@@ -28,9 +28,9 @@
 #define YOYO_NAME "yoyo"
 #define YOYO_VERSION "0.99.0"
 
-#define DEFAULT_HANG_CHECK_INTERVAL 60
-#define DEFAULT_MAX_HANGS 5
-#define DEFAULT_MAX_RETRIES 5
+const int default_hang_check_interval = 60;
+const int default_max_hangs = 5;
+const int default_max_retries = 5;
 
 /*************************************************************************/
 /* globals */
@@ -136,9 +136,8 @@ int yoyo(int argc, char **argv)
 	// now that globals are setup, set the handler
 	yoyo_signal(SIGCHLD, &exit_reason_child_trap);
 
-	for (int retries_remaining = max_retries;
-	     retries_remaining > 0; --retries_remaining) {
-
+	int max_tries = max_retries + 1;
+	for (int i = 0; i < max_tries; ++i) {
 		// reset our exit reason prior to each fork
 		exit_reason_clear(&global_exit_reason);
 
@@ -588,15 +587,15 @@ int print_help(FILE *out, const char *name)
 	fprintf(out, "seconds to sleep between checks\n");
 	fprintf(out, "                                 ");
 	fprintf(out, "    if < 1, defaults is %d\n",
-		DEFAULT_HANG_CHECK_INTERVAL);
+		default_hang_check_interval);
 	fprintf(out, "  -m, --max-hangs[=num]          ");
 	fprintf(out, "number of hang checks to tolerate\n");
 	fprintf(out, "                                 ");
-	fprintf(out, "    if < 1, defaults is %d\n", DEFAULT_MAX_HANGS);
+	fprintf(out, "    if < 1, defaults is %d\n", default_max_hangs);
 	fprintf(out, "  -r, --max-retries[=num]          ");
 	fprintf(out, "max iterations to retry after hang\n");
 	fprintf(out, "                                 ");
-	fprintf(out, "    if < 1, defaults is %d\n", DEFAULT_MAX_RETRIES);
+	fprintf(out, "    if < 1, defaults is %d\n", default_max_retries);
 	fprintf(out, "  -f, --fakeroot[=path]          ");
 	fprintf(out, "path to look for /proc files\n");
 	return 0;
@@ -620,6 +619,9 @@ void parse_command_line(struct yoyo_options *options, int argc, char **argv)
 	};
 
 	memset(options, 0x00, sizeof(struct yoyo_options));
+	options->hang_check_interval = -1;
+	options->max_hangs = -1;
+	options->max_retries = -1;
 
 	while (1) {
 		int option_index = 0;
@@ -655,16 +657,16 @@ void parse_command_line(struct yoyo_options *options, int argc, char **argv)
 		}
 	}
 
-	if (options->hang_check_interval < 1) {
-		options->hang_check_interval = DEFAULT_HANG_CHECK_INTERVAL;
+	if (options->hang_check_interval < 0) {
+		options->hang_check_interval = default_hang_check_interval;
 	}
 
-	if (options->max_hangs < 1) {
-		options->max_hangs = DEFAULT_MAX_HANGS;
+	if (options->max_hangs < 0) {
+		options->max_hangs = default_max_hangs;
 	}
 
-	if (options->max_retries < 1) {
-		options->max_retries = DEFAULT_MAX_RETRIES;
+	if (options->max_retries < 0) {
+		options->max_retries = default_max_retries;
 	}
 
 	if (!options->fakeroot) {

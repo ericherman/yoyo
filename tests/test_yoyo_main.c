@@ -10,6 +10,8 @@
 #include <string.h>
 #include <sys/types.h>
 
+extern const int default_max_retries;
+
 extern int optind, opterr, optopt;
 void reset_getopt_globals(void)
 {
@@ -456,14 +458,18 @@ unsigned test_child_hangs_every_time(void)
 	yoyo_stdout = dev_null;
 	yoyo_stderr = dev_null;
 
-	failures += Check(fork_count == 5, "expected 5 but was %u", fork_count);
+	const unsigned max_tries = default_max_retries + 1;
+
+	failures +=
+	    Check(fork_count == max_tries, "expected %u but was %u", max_tries,
+		  fork_count);
 
 	failures +=
 	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
 
 	failures +=
-	    Check(monitor_for_hang_count == 5, "expected 5 but was %u",
-		  monitor_for_hang_count);
+	    Check(monitor_for_hang_count == max_tries, "expected %u but was %u",
+		  max_tries, monitor_for_hang_count);
 
 	failures += Check(exit_val == 1, "expected 1, but was %d", exit_val);
 
@@ -516,14 +522,18 @@ unsigned test_child_killed_every_time(void)
 	yoyo_stdout = dev_null;
 	yoyo_stderr = dev_null;
 
-	failures += Check(fork_count == 5, "expected 5 but was %u", fork_count);
+	const unsigned max_tries = default_max_retries + 1;
+
+	failures +=
+	    Check(fork_count == max_tries, "expected %u but was %u", max_tries,
+		  fork_count);
 
 	failures +=
 	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
 
 	failures +=
-	    Check(monitor_for_hang_count == 5, "expected 5 but was %u",
-		  monitor_for_hang_count);
+	    Check(monitor_for_hang_count == max_tries, "expected %u but was %u",
+		  max_tries, monitor_for_hang_count);
 
 	failures += Check(exit_val == 1, "expected 1, but was %d", exit_val);
 

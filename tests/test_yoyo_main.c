@@ -245,9 +245,9 @@ unsigned test_version(void)
 
 	failures += Check(!exit_val, "expected 0 but was: %d", exit_val);
 
-	const char *expect = "0.99.1";
 	failures +=
-	    Check(strstr(buf, expect), "expected '%s' in: %s", expect, buf);
+	    Check(strstr(buf, yoyo_version), "expected '%s' in: %s",
+		  yoyo_version, buf);
 
 	failures += Check(fork_count == 0, "expected 0 but was %u", fork_count);
 

@@ -11,8 +11,6 @@ extern unsigned int (*yoyo_sleep)(unsigned int seconds);
 extern struct state_list *(*get_states) (long pid);
 extern void (*free_states)(struct state_list *l);
 
-extern const int default_hang_check_interval;
-
 #include <stdio.h>
 
 extern int yoyo_verbose;

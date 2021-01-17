@@ -11,9 +11,6 @@
 #include <signal.h>
 #include <stdlib.h>
 
-extern const int default_hang_check_interval;
-extern const int default_max_hangs;
-
 const pid_t child_pid = 1754993;
 
 const size_t qemu_state_0_len = 10;

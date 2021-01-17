@@ -25,8 +25,7 @@
 #include <sys/wait.h>		/* waitpid */
 #include <unistd.h>		/* execv, fork */
 
-#define YOYO_NAME "yoyo"
-#define YOYO_VERSION "0.99.1"
+const char *yoyo_version = "0.99.1";
 
 const int default_hang_check_interval = 60;
 const int default_max_hangs = 5;
@@ -104,7 +103,7 @@ int yoyo(int argc, char **argv)
 
 	int child_command_line_len = options.child_command_line_len;
 	if (options.version) {
-		fprintf(Ystdout, "%s version %s\n", YOYO_NAME, YOYO_VERSION);
+		fprintf(Ystdout, "yoyo version %s\n", yoyo_version);
 		return EXIT_SUCCESS;
 	} else if (options.help || !child_command_line_len) {
 		print_help(Ystdout, argv[0]);
@@ -570,15 +569,15 @@ void exit_reason_to_str(struct exit_reason *reason, char *buf, size_t bufsize)
 
 int print_help(FILE *out, const char *name)
 {
-	fprintf(out, "The %s runs a program, and monitors /proc\n", YOYO_NAME);
+	fprintf(out, "The yoyo runs a program, and monitors /proc\n");
 	fprintf(out, "Based on counters in /proc if the process looks hung,\n");
-	fprintf(out, "%s will kill and restart it.\n\n", YOYO_NAME);
+	fprintf(out, "yoyo will kill and restart it.\n\n");
 	fprintf(out, "Typical usage does not involve options.\n");
 	fprintf(out, "Options are useful for testing.\n");
 	fprintf(out, "\n");
 	fprintf(out, "Usage: %s [OPTION] program program-args...\n", name);
 	fprintf(out, "  -V, --version                  ");
-	fprintf(out, "print version (%s) and exit\n", YOYO_VERSION);
+	fprintf(out, "print version (%s) and exit\n", yoyo_version);
 	fprintf(out, "  -h, --help                     ");
 	fprintf(out, "print this message and exit\n");
 	fprintf(out, "  -v, --verbose                  ");

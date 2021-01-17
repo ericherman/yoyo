@@ -28,6 +28,10 @@ SHELL=/bin/bash
 
 VALGRIND=$(shell which valgrind)
 
+YOYO_VERSION=$(shell \
+	     grep '^const char \*yoyo_version =' src/yoyo.c \
+	     | cut -f2 -d'"')
+
 # extracted from https://github.com/torvalds/linux/blob/master/scripts/Lindent
 LINDENT=indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1 -il0
 # see also: https://www.kernel.org/doc/Documentation/process/coding-style.rst
@@ -242,14 +246,14 @@ debug/faux-rogue: tests/faux-rogue.c
 yoyo-version: ./build/yoyo
 	@echo
 	./build/yoyo --version >$@.out 2>&1
-	grep -q '0.99.1' $@.out
+	grep -q '$(YOYO_VERSION)' $@.out
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
 valgrind-yoyo-version: ./debug/yoyo
 	@echo
 	$(VALGRIND) ./debug/yoyo --version >$@.out 2>&1
-	grep -q '0.99.1' $@.out
+	grep -q '$(YOYO_VERSION)' $@.out
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
 	rm -f $@.out

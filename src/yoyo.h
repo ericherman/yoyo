@@ -45,6 +45,12 @@ struct exit_reason {
 	int continued;
 };
 
+/* advertised constants */
+extern const char *yoyo_version;
+extern const int default_hang_check_interval;
+extern const int default_max_hangs;
+extern const int default_max_retries;
+
 /* function prototypes */
 
 /* monitor a child process; signal the process if it looks hung */
@@ -91,4 +97,5 @@ void exit_reason_to_str(struct exit_reason *exit_reason, char *buf, size_t len);
 void parse_command_line(struct yoyo_options *options, int argc, char **argv);
 
 int yoyo(int argc, char **argv);
+
 #endif /* YOYO_H */

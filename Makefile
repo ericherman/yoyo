@@ -62,24 +62,6 @@ debug/test-util.o: tests/test-util.c tests/test-util.h
 	mkdir -pv debug
 	$(CC) -c $(DEBUG_CFLAGS) $< -o $@
 
-build/test_yoyo_parse_command_line: build/yoyo.o build/test-util.o \
-		tests/test_yoyo_parse_command_line.c
-	$(CC) $(BUILD_CFLAGS) $^ -o $@
-
-check_yoyo_parse_command_line: build/test_yoyo_parse_command_line
-	./build/test_yoyo_parse_command_line
-	@echo "SUCCESS! ($@)"
-
-debug/test_yoyo_parse_command_line: debug/yoyo.o debug/test-util.o \
-		tests/test_yoyo_parse_command_line.c
-	$(CC) $(DEBUG_CFLAGS) $^ -o $@
-
-valgrind_check_yoyo_parse_command_line: debug/test_yoyo_parse_command_line
-	$(VALGRIND) ./debug/test_yoyo_parse_command_line >$@.out 2>&1
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f $@.out
-	@echo "SUCCESS! ($@)"
 
 build/test_process_looks_hung: build/yoyo.o build/test-util.o \
 		tests/test_process_looks_hung.c
@@ -214,7 +196,7 @@ valgrind_check_exit_reason: debug/test_exit_reason
 	rm -fv $@.out
 	@echo "SUCCESS! ($@)"
 
-check-unit: check_yoyo_parse_command_line \
+check-unit: \
 		check_exit_reason \
 		check_yoyo_main \
 		check_slurp_text \
@@ -224,7 +206,7 @@ check-unit: check_yoyo_parse_command_line \
 		check_monitor_child_for_hang
 	@echo "SUCCESS! ($@)"
 
-valgrind-check-unit: valgrind_check_yoyo_parse_command_line \
+valgrind-check-unit: \
 		valgrind_check_exit_reason \
 		valgrind_check_yoyo_main \
 		valgrind_check_slurp_text \
@@ -285,8 +267,8 @@ check-acceptance-succeed-first-try: build/yoyo build/faux-rogue
 	@echo
 	@echo "succeed first try"
 	echo "0" > tmp.$@.failcount
+	WAIT_INTERVAL=$(WAIT_INTERVAL) \
 	./build/yoyo \
-		--wait-interval=$(WAIT_INTERVAL) $(YOYO_OPTS) \
 		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q '(succeed)' $@.out
@@ -297,9 +279,9 @@ valgrind-check-acceptance-succeed-first-try: debug/yoyo debug/faux-rogue
 	@echo
 	@echo "succeed first try"
 	echo "0" > tmp.$@.failcount
+	WAIT_INTERVAL=$(WAIT_INTERVAL) \
+	VERBOSE=2 \
 	$(VALGRIND) ./debug/yoyo \
-		--wait-interval=$(WAIT_INTERVAL) \
-		--verbose=2 $(YOYO_OPTS) \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q '(succeed)' $@.out
@@ -312,8 +294,8 @@ check-acceptance-fail-one-then-succeed: build/yoyo build/faux-rogue
 	@echo
 	@echo "fail once, then succeed"
 	echo "1" > tmp.$@.failcount
+	WAIT_INTERVAL=$(WAIT_INTERVAL) \
 	./build/yoyo \
-		--wait-interval=$(WAIT_INTERVAL) $(YOYO_OPTS) \
 		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q 'exited with status 127' $@.out
@@ -326,9 +308,9 @@ valgrind-check-acceptance-fail-one-then-succeed: debug/yoyo debug/faux-rogue
 	@echo
 	@echo "fail once, then succeed"
 	echo "1" > tmp.$@.failcount
+	WAIT_INTERVAL=$(WAIT_INTERVAL) \
+	VERBOSE=2 \
 	$(VALGRIND) ./debug/yoyo \
-		--wait-interval=$(WAIT_INTERVAL) \
-		--verbose=2 $(YOYO_OPTS) \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q 'exited with status 127' $@.out
@@ -343,8 +325,8 @@ check-acceptance-succeed-after-long-time: build/yoyo build/faux-rogue
 	@echo
 	@echo "succeed after a long time"
 	echo "0" > tmp.$@.failcount
+	WAIT_INTERVAL=$(WAIT_INTERVAL) \
 	./build/yoyo \
-		--wait-interval=$(WAIT_INTERVAL) $(YOYO_OPTS) \
 		./build/faux-rogue $(FIXTURE_SLEEP_LONG) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q '(succeed)' $@.out
@@ -355,9 +337,9 @@ valgrind-check-acceptance-succeed-after-long-time: debug/yoyo debug/faux-rogue
 	@echo
 	@echo "succeed after a long time"
 	echo "0" > tmp.$@.failcount
+	WAIT_INTERVAL=$(WAIT_INTERVAL) \
+	VERBOSE=2 \
 	$(VALGRIND) ./debug/yoyo \
-		--wait-interval=$(WAIT_INTERVAL) \
-		--verbose=2 $(YOYO_OPTS) \
 		./debug/faux-rogue $(FIXTURE_SLEEP_LONG) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q '(succeed)' $@.out
@@ -369,8 +351,8 @@ valgrind-check-acceptance-succeed-after-long-time: debug/yoyo debug/faux-rogue
 check-acceptance-hang-twice-then-succeed: build/yoyo build/faux-rogue
 	echo "./build/faux-rogue will hang twice"
 	echo "-2" > tmp.$@.failcount
+	WAIT_INTERVAL=$(WAIT_INTERVAL) \
 	./build/yoyo \
-		--wait-interval=$(WAIT_INTERVAL) $(YOYO_OPTS) \
 		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q 'terminated by a signal 15' $@.out
@@ -381,9 +363,9 @@ check-acceptance-hang-twice-then-succeed: build/yoyo build/faux-rogue
 valgrind-check-acceptance-hang-twice-then-succeed: debug/yoyo debug/faux-rogue
 	echo "./debug/faux-rogue will hang twice"
 	echo "-2" > tmp.$@.failcount
+	WAIT_INTERVAL=$(WAIT_INTERVAL) \
+	VERBOSE=2 \
 	$(VALGRIND) ./debug/yoyo \
-		--wait-interval=$(WAIT_INTERVAL) \
-		--verbose=2 $(YOYO_OPTS) \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q 'terminated by a signal 15' $@.out
@@ -397,9 +379,11 @@ check-acceptance-fail-every-time: build/yoyo build/faux-rogue
 	@echo
 	echo "now ./build/faux-rogue will hang every time"
 	echo "100" > tmp.$@.failcount
-	-( ./build/yoyo \
-		--wait-interval=$(WAIT_INTERVAL) \
-		--max-hangs=3 --max-retries=2 $(YOYO_OPTS) \
+	-( WAIT_INTERVAL=$(WAIT_INTERVAL) \
+	   VERBOSE=2 \
+	   MAX_HANGS=3 \
+	   MAX_RETRIES=2 \
+	   ./build/yoyo \
 		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1 )
 	grep -q 'Retries limit reached' $@.out
@@ -410,10 +394,10 @@ valgrind-check-acceptance-fail-every-time: debug/yoyo debug/faux-rogue
 	@echo
 	echo "now ./debug/faux-rogue will hang every time"
 	echo "100" > tmp.$@.failcount
-	-( $(VALGRIND) ./debug/yoyo \
-		--wait-interval=$(WAIT_INTERVAL) \
-		--max-hangs=3 --max-retries=2 \
-		--verbose=2 $(YOYO_OPTS) \
+	-( WAIT_INTERVAL=$(WAIT_INTERVAL) \
+	   VERBOSE=2 \
+	   MAX_HANGS=3 \
+	   MAX_RETRIES=2 \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1 )
 	grep -q 'Retries limit reached' $@.out
@@ -426,9 +410,11 @@ check-acceptance-hang-every-time: build/yoyo build/faux-rogue
 	@echo
 	echo "now ./build/faux-rogue will hang every time"
 	echo "-100" > tmp.$@.failcount
-	-( ./build/yoyo \
-		--wait-interval=$(WAIT_INTERVAL) \
-		--max-hangs=3 --max-retries=2 $(YOYO_OPTS) \
+	-( WAIT_INTERVAL=$(WAIT_INTERVAL) \
+	   VERBOSE=2 \
+	   MAX_HANGS=3 \
+	   MAX_RETRIES=2 \
+	   ./build/yoyo \
 		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1 )
 	grep -q 'Retries limit reached' $@.out
@@ -439,10 +425,11 @@ valgrind-check-acceptance-hang-every-time: debug/yoyo debug/faux-rogue
 	@echo
 	echo "now ./debug/faux-rogue will hang every time"
 	echo "-100" > tmp.$@.failcount
-	-( $(VALGRIND) ./debug/yoyo \
-		--wait-interval=$(WAIT_INTERVAL) \
-		--max-hangs=3 --max-retries=2 \
-		--verbose=2 $(YOYO_OPTS) \
+	-( WAIT_INTERVAL=$(WAIT_INTERVAL) \
+	   VERBOSE=2 \
+	   MAX_HANGS=3 \
+	   MAX_RETRIES=2 \
+	   $(VALGRIND) ./debug/yoyo \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1 )
 	grep -q 'Retries limit reached' $@.out

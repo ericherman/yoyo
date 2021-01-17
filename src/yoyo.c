@@ -16,7 +16,6 @@
 /* hosted headers */
 #include <errno.h>
 #include <glob.h>
-#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -82,10 +81,6 @@ typedef void (*sighandler_func)(int);
 sighandler_func (*yoyo_signal)(int signum, sighandler_func handler) = signal;
 pid_t (*yoyo_waitpid)(pid_t pid, int *wstatus, int options) = waitpid;
 
-/* if the global yoyo_proc_fakeroot is non-null, it will be prepended before
- * '/proc' by get_states_proc(pid) */
-const char *yoyo_proc_fakeroot = NULL;
-
 /* global pointers to internal functions */
 struct state_list *(*get_states) (long pid) = get_states_proc;
 void (*free_states)(struct state_list *l) = state_list_free;
@@ -94,28 +89,33 @@ void (*monitor_for_hang)(long child_pid, unsigned max_hangs,
 
 /*************************************************************************/
 /* functions */
-int print_help(FILE *out, const char *name);
+int print_help(FILE *out);
+
+int yoyo_env_default(int default_val, const char *env_var_name)
+{
+	char *ev = getenv(env_var_name);
+	return ev ? atoi(ev) : default_val;
+}
 
 int yoyo(int argc, char **argv)
 {
-	struct yoyo_options options;
-	parse_command_line(&options, argc, argv);
-
-	int child_command_line_len = options.child_command_line_len;
-	if (options.version) {
-		fprintf(Ystdout, "yoyo version %s\n", yoyo_version);
+	if (argc < 2) {
+		print_help(Ystderr);
+		return EXIT_FAILURE;
+	} else if (strcmp(argv[1], "--help") == 0) {
+		print_help(Ystdout);
 		return EXIT_SUCCESS;
-	} else if (options.help || !child_command_line_len) {
-		print_help(Ystdout, argv[0]);
-		if (!options.help && !child_command_line_len) {
-			return EXIT_FAILURE;
-		}
+	} else if (strcmp(argv[1], "--version") == 0) {
+		fprintf(Ystdout, "yoyo %s\n", yoyo_version);
 		return EXIT_SUCCESS;
 	}
-	int max_retries = options.max_retries;
-	char **child_command_line = options.child_command_line;
-	int max_hangs = options.max_hangs;
-	int hang_check_interval = options.hang_check_interval;
+	int max_retries = yoyo_env_default(default_max_retries, "MAX_RETRIES");
+	int max_hangs = yoyo_env_default(default_max_retries, "MAX_HANGS");
+	int hang_check_interval = yoyo_env_default(default_hang_check_interval,
+						   "HANG_CHECK_INTERVAL");
+
+	char **child_command_line = argv + 1;
+	int child_command_line_len = argc - 1;
 
 	size_t buflen = 80;
 	char buf[buflen];
@@ -125,9 +125,8 @@ int yoyo(int argc, char **argv)
 	strcat(summary, "yoyo result summary:\n");
 
 	// setup globals
-	yoyo_verbose = options.verbose;
+	yoyo_verbose = yoyo_env_default(yoyo_verbose, "VERBOSE");
 	Ylog(1, "yoyo_verbose: %d\n", yoyo_verbose);
-	yoyo_proc_fakeroot = options.fakeroot;
 
 	// setup global for sharing data with signal handler
 	exit_reason_clear(&global_exit_reason);
@@ -230,8 +229,7 @@ int process_looks_hung(struct state_list **next, struct state_list *previous,
 
 static char *pid_to_stat_pattern(char *buf, long pid)
 {
-	strcpy(buf, yoyo_proc_fakeroot ? yoyo_proc_fakeroot : "");
-	strcat(buf, "/proc/");
+	strcpy(buf, "/proc/");
 	sprintf(buf + strlen(buf), "%ld", pid);
 	strcat(buf, "/task/*/stat");
 	return buf;
@@ -567,113 +565,17 @@ void exit_reason_to_str(struct exit_reason *reason, char *buf, size_t bufsize)
 	}
 }
 
-int print_help(FILE *out, const char *name)
+int print_help(FILE *out)
 {
 	fprintf(out, "The yoyo runs a program, and monitors /proc\n");
 	fprintf(out, "Based on counters in /proc if the process looks hung,\n");
-	fprintf(out, "yoyo will kill and restart it.\n\n");
-	fprintf(out, "Typical usage does not involve options.\n");
-	fprintf(out, "Options are useful for testing.\n");
+	fprintf(out, "yoyo will kill and restart it.\n");
 	fprintf(out, "\n");
-	fprintf(out, "Usage: %s [OPTION] program program-args...\n", name);
-	fprintf(out, "  -V, --version                  ");
+	fprintf(out, "Usage: yoyo program program-args...\n");
+	fprintf(out, "or\n");
+	fprintf(out, "  --version                  ");
 	fprintf(out, "print version (%s) and exit\n", yoyo_version);
-	fprintf(out, "  -h, --help                     ");
+	fprintf(out, "  --help                     ");
 	fprintf(out, "print this message and exit\n");
-	fprintf(out, "  -v, --verbose                  ");
-	fprintf(out, "output addition error information\n");
-	fprintf(out, "  -w, --wait-interval[=seconds]  ");
-	fprintf(out, "seconds to sleep between checks\n");
-	fprintf(out, "                                 ");
-	fprintf(out, "    if < 1, defaults is %d\n",
-		default_hang_check_interval);
-	fprintf(out, "  -m, --max-hangs[=num]          ");
-	fprintf(out, "number of hang checks to tolerate\n");
-	fprintf(out, "                                 ");
-	fprintf(out, "    if < 1, defaults is %d\n", default_max_hangs);
-	fprintf(out, "  -r, --max-retries[=num]          ");
-	fprintf(out, "max iterations to retry after hang\n");
-	fprintf(out, "                                 ");
-	fprintf(out, "    if < 1, defaults is %d\n", default_max_retries);
-	fprintf(out, "  -f, --fakeroot[=path]          ");
-	fprintf(out, "path to look for /proc files\n");
 	return 0;
-}
-
-/* getopt/getoplong is horrrible */
-void parse_command_line(struct yoyo_options *options, int argc, char **argv)
-{
-	/* yes, optstirng is horrible */
-	const char *optstring = "Vhvw::m::r::f::";
-
-	struct option long_options[] = {
-		{ "version", no_argument, 0, 'V' },
-		{ "help", no_argument, 0, 'h' },
-		{ "verbose", optional_argument, 0, 'v' },
-		{ "wait-interval", optional_argument, 0, 'w' },
-		{ "max-hangs", optional_argument, 0, 'm' },
-		{ "max-retries", optional_argument, 0, 'r' },
-		{ "fakeroot", optional_argument, 0, 'f' },
-		{ 0, 0, 0, 0 }
-	};
-
-	memset(options, 0x00, sizeof(struct yoyo_options));
-	options->hang_check_interval = -1;
-	options->max_hangs = -1;
-	options->max_retries = -1;
-
-	while (1) {
-		int option_index = 0;
-		int opt_char = getopt_long(argc, argv, optstring, long_options,
-					   &option_index);
-
-		/* Detect the end of the options. */
-		if (opt_char == -1)
-			break;
-
-		switch (opt_char) {
-		case 'V':	/* --version | -V */
-			options->version = 1;
-			break;
-		case 'h':	/* --help | -h */
-			options->help = 1;
-			break;
-		case 'v':	/* --verbose | -v */
-			options->verbose = optarg ? atoi(optarg) : 1;
-			break;
-		case 'w':	/* --wait-interval | -w */
-			options->hang_check_interval = atoi(optarg);
-			break;
-		case 'm':	/* --max-hangs | -m */
-			options->max_hangs = atoi(optarg);
-			break;
-		case 'r':	/* --max-retries | -m */
-			options->max_retries = atoi(optarg);
-			break;
-		case 'f':	/* --fakeroot | -f */
-			options->fakeroot = optarg;
-			break;
-		}
-	}
-
-	if (options->hang_check_interval < 0) {
-		options->hang_check_interval = default_hang_check_interval;
-	}
-
-	if (options->max_hangs < 0) {
-		options->max_hangs = default_max_hangs;
-	}
-
-	if (options->max_retries < 0) {
-		options->max_retries = default_max_retries;
-	}
-
-	if (!options->fakeroot) {
-		options->fakeroot = "";
-	}
-
-	// shift-off this program + options, and exec the rest
-	// of the commandline
-	options->child_command_line = argv + optind;
-	options->child_command_line_len = argc - optind;
 }

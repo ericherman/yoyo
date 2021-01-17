@@ -11,14 +11,7 @@
 #include <sys/types.h>
 
 extern const int default_max_retries;
-
-extern int optind, opterr, optopt;
-void reset_getopt_globals(void)
-{
-	optind = 1;
-	opterr = 1;
-	optopt = 63;
-}
+extern int yoyo_verbose;
 
 extern struct exit_reason global_exit_reason;
 extern FILE *yoyo_stdout;
@@ -107,11 +100,10 @@ unsigned test_fake_fork(void)
 	unsigned failures = 0;
 
 	char *argv0 = "./yoyo";
-	char *argv1 = "--verbose=2";
 	char *child_argv0 = "./faux-rogue";
-	char *child_argv1 = "2";
-	char *argv[5] = { argv0, argv1, child_argv0, child_argv1, NULL };
-	const int argc = 4;
+	char *child_argv1 = "1";
+	char *argv[4] = { argv0, child_argv0, child_argv1, NULL };
+	const int argc = 3;
 
 	const size_t buflen = 80 * 24;
 	char buf[80 * 24];
@@ -119,8 +111,8 @@ unsigned test_fake_fork(void)
 	FILE *fbuf = fmemopen(buf, buflen, "w");
 	yoyo_stdout = fbuf;
 	yoyo_stderr = fbuf;
+	yoyo_verbose = 2;
 
-	reset_getopt_globals();
 	int exit_val = yoyo(argc, argv);
 
 	fflush(fbuf);
@@ -187,8 +179,6 @@ unsigned test_help(void)
 	yoyo_stdout = fbuf;
 	yoyo_stderr = fbuf;
 
-	reset_getopt_globals();
-
 	int exit_val = yoyo(argc, argv);
 
 	fflush(fbuf);
@@ -197,10 +187,6 @@ unsigned test_help(void)
 	yoyo_stderr = dev_null;
 
 	failures += Check(!exit_val, "expected 0 but was: %d", exit_val);
-
-	const char *expect = "max-hangs";
-	failures +=
-	    Check(strstr(buf, expect), "expected '%s' in: %s", expect, buf);
 
 	failures += Check(fork_count == 0, "expected 0 but was %u", fork_count);
 
@@ -233,8 +219,6 @@ unsigned test_version(void)
 	FILE *fbuf = fmemopen(buf, buflen, "w");
 	yoyo_stdout = fbuf;
 	yoyo_stderr = fbuf;
-
-	reset_getopt_globals();
 
 	int exit_val = yoyo(argc, argv);
 
@@ -277,8 +261,6 @@ unsigned test_failing_fork(void)
 	char *child_argv1 = "2";
 	char *argv[4] = { argv0, child_argv0, child_argv1, NULL };
 	const int argc = 3;
-
-	reset_getopt_globals();
 
 	int exit_val = yoyo(argc, argv);
 
@@ -324,12 +306,9 @@ unsigned test_child_works_first_time(void)
 	unsigned failures = 0;
 
 	char *argv0 = "./yoyo";
-	char *argv1 = "--verbose=2";
 	char *child_argv0 = "./bogus";
-	char *argv[4] = { argv0, argv1, child_argv0, NULL };
-	const int argc = 3;
-
-	reset_getopt_globals();
+	char *argv[3] = { argv0, child_argv0, NULL };
+	const int argc = 2;
 
 	int exit_val = yoyo(argc, argv);
 
@@ -384,12 +363,9 @@ unsigned test_child_works_last_time(void)
 	unsigned failures = 0;
 
 	char *argv0 = "./yoyo";
-	char *argv1 = "--verbose=2";
 	char *child_argv0 = "./bogus";
-	char *argv[4] = { argv0, argv1, child_argv0, NULL };
-	const int argc = 3;
-
-	reset_getopt_globals();
+	char *argv[3] = { argv0, child_argv0, NULL };
+	const int argc = 2;
 
 	int exit_val = yoyo(argc, argv);
 
@@ -444,12 +420,9 @@ unsigned test_child_hangs_every_time(void)
 	unsigned failures = 0;
 
 	char *argv0 = "./yoyo";
-	char *argv1 = "--verbose=2";
 	char *child_argv0 = "./bogus";
-	char *argv[4] = { argv0, argv1, child_argv0, NULL };
-	const int argc = 3;
-
-	reset_getopt_globals();
+	char *argv[3] = { argv0, child_argv0, NULL };
+	const int argc = 2;
 
 	int exit_val = yoyo(argc, argv);
 
@@ -508,12 +481,9 @@ unsigned test_child_killed_every_time(void)
 	unsigned failures = 0;
 
 	char *argv0 = "./yoyo";
-	char *argv1 = "--verbose=2";
 	char *child_argv0 = "./bogus";
-	char *argv[4] = { argv0, argv1, child_argv0, NULL };
-	const int argc = 3;
-
-	reset_getopt_globals();
+	char *argv[3] = { argv0, child_argv0, NULL };
+	const int argc = 2;
 
 	int exit_val = yoyo(argc, argv);
 
@@ -559,10 +529,9 @@ unsigned test_do_not_even_try_if_no_child(void)
 
 	unsigned failures = 0;
 
-	const int argc = 2;
-	char *argv[3] = { "./yoyo", "--verbose=1", NULL };
+	const int argc = 1;
+	char *argv[2] = { "./yoyo", NULL };
 
-	reset_getopt_globals();
 	int exit_val = yoyo(argc, argv);
 
 	failures += Check(fork_count == 0, "expected 0 but was %u", fork_count);

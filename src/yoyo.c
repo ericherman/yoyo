@@ -182,9 +182,9 @@ int yoyo(int argc, char **argv)
 		} else {
 			char er_buf[250];
 			exit_reason_to_str(&global_exit_reason, er_buf, 250);
-			Ylog(0, "exit reason:%s\n", er_buf);
+			Ylog(0, "exit reason: %s\n", er_buf);
 
-			snprintf(buf, buflen, "Child '%s' ended oddly\n",
+			snprintf(buf, buflen, "Child '%s' killed\n",
 				 child_command_line[0]);
 			Ylog(0, "%s", buf);
 			strcat(summary, buf);

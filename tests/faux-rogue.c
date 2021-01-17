@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* faux-rogue: a test program for yoyo which pretends to hang or fail */
-/* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org>, Brett Neumeier */
+/* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> and
+        Brett Neumeier <brett@freesa.org> */
 
 #include <stdio.h>
 #include <stdlib.h>

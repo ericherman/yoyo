@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* yoyo: a program to launch and re-launch another program if it hangs */
-/* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org>, Brett Neumeier */
+/* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> and
+        Brett Neumeier <brett@freesa.org> */
 
 #include "yoyo.h"
 
@@ -567,9 +568,12 @@ void exit_reason_to_str(struct exit_reason *reason, char *buf, size_t bufsize)
 
 int print_help(FILE *out)
 {
-	fprintf(out, "The yoyo runs a program, and monitors /proc\n");
-	fprintf(out, "Based on counters in /proc if the process looks hung,\n");
-	fprintf(out, "yoyo will kill and restart it.\n");
+	fprintf(out, "yoyo runs a program and monitors /proc. ");
+	fprintf(out, "If the process looks hung, based\n");
+	fprintf(out, "on activity observed in /proc, yoyo ");
+	fprintf(out, "will kill and restart it. If the\n");
+	fprintf(out, "program terminates with an error status, ");
+	fprintf(out, "yoyo will run it again.\n");
 	fprintf(out, "\n");
 	fprintf(out, "Usage: yoyo program program-args...\n");
 	fprintf(out, "or\n");

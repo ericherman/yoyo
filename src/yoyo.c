@@ -23,9 +23,9 @@
 #include <string.h>		/* strerror */
 #include <sys/types.h>		/* pid_t */
 #include <sys/wait.h>		/* waitpid */
-#include <unistd.h>		/* execv, fork */
+#include <unistd.h>		/* execvp, fork */
 
-const char *yoyo_version = "0.99.2";
+const char *yoyo_version = "0.99.3";
 
 const int default_hang_check_interval = 60;
 const int default_max_hangs = 5;
@@ -70,9 +70,9 @@ FILE *yoyo_stderr = NULL;
 void *(*yoyo_calloc)(size_t nmemb, size_t size) = calloc;
 void (*yoyo_free)(void *ptr) = free;
 
-/* global pointers to fork, execv, kill, sleep provided for testing */
+/* global pointers to fork, execvp, kill, sleep provided for testing */
 pid_t (*yoyo_fork)(void) = fork;
-int (*yoyo_execv)(const char *pathname, char *const argv[]) = execv;
+int (*yoyo_execvp)(const char *pathname, char *const argv[]) = execvp;
 int (*yoyo_kill)(pid_t pid, int sig) = kill;
 unsigned int (*yoyo_sleep)(unsigned int seconds) = sleep;
 
@@ -150,13 +150,12 @@ int yoyo(int argc, char **argv)
 			return EXIT_FAILURE;
 		} else if (global_exit_reason.child_pid == 0) {
 			// in child process
-			Ylog(1, "%s", child_command_line[0]);
+			Ylog(1, "command: %s\n", child_command_line[0]);
 			for (int i = 1; i < child_command_line_len; ++i) {
-				Ylog_append(1, " %s", child_command_line[i]);
+				Ylog_append(1, "  arg: %s\n", child_command_line[i]);
 			}
-			Ylog_append(1, "\n");
-			return yoyo_execv(child_command_line[0],
-					  child_command_line);
+			return yoyo_execvp(child_command_line[0],
+					   child_command_line);
 		}
 
 		Ylog(1, "'%s' child_pid: %ld\n", child_command_line[0],

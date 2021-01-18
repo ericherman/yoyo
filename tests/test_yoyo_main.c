@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> */
+/* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> and
+        Brett Neumeier <brett@freesa.org> */
 
 #include "yoyo.h"
 #include "test-util.h"
@@ -20,8 +21,8 @@ extern FILE *yoyo_stderr;
 typedef pid_t (*fork_func)(void);
 extern fork_func yoyo_fork;
 
-typedef int (*execv_func)(const char *pathname, char *const argv[]);
-extern execv_func yoyo_execv;
+typedef int (*execvp_func)(const char *pathname, char *const argv[]);
+extern execvp_func yoyo_execvp;
 
 typedef void (*sighandler_func)(int);
 typedef sighandler_func (*signal_func)(int signum, sighandler_func handler);
@@ -41,12 +42,12 @@ pid_t fake_counting_fork(void)
 	return fake_counting_fork_rv;
 }
 
-unsigned execv_count;
+unsigned execvp_count;
 const char *stash_pathname;
 char *const *stash_argv;
-int fake_counting_execv(const char *pathname, char *const *argv)
+int fake_counting_execvp(const char *pathname, char *const *argv)
 {
-	++execv_count;
+	++execvp_count;
 	stash_pathname = pathname;
 	stash_argv = argv;
 	return 0;
@@ -83,7 +84,7 @@ void fake_monitor_for_hang_func(long child_pid, unsigned max_hangs,
 unsigned test_fake_fork(void)
 {
 	fork_count = 0;
-	execv_count = 0;
+	execvp_count = 0;
 	stash_pathname = NULL;
 	stash_argv = NULL;
 	fake_counting_fork_rv = 0;
@@ -93,7 +94,7 @@ unsigned test_fake_fork(void)
 	fake_wait_status_len = 0;
 
 	yoyo_fork = fake_counting_fork;
-	yoyo_execv = fake_counting_execv;
+	yoyo_execvp = fake_counting_execvp;
 	yoyo_signal = stash_sig_handler;
 	monitor_for_hang = fake_monitor_for_hang_func;
 
@@ -130,7 +131,7 @@ unsigned test_fake_fork(void)
 	failures += Check(fork_count == 1, "expected 1 but was %u", fork_count);
 
 	failures +=
-	    Check(execv_count == 1, "expected 1 but was %u", execv_count);
+	    Check(execvp_count == 1, "expected 1 but was %u", execvp_count);
 
 	failures += Check(stash_pathname
 			  && strcmp(stash_pathname, child_argv0) == 0,
@@ -157,13 +158,13 @@ unsigned test_fake_fork(void)
 unsigned test_help(void)
 {
 	fork_count = 0;
-	execv_count = 0;
+	execvp_count = 0;
 	stash_pathname = NULL;
 	stash_argv = NULL;
 	fake_counting_fork_rv = 0;
 
 	yoyo_fork = fake_counting_fork;
-	yoyo_execv = fake_counting_execv;
+	yoyo_execvp = fake_counting_execvp;
 
 	unsigned failures = 0;
 
@@ -191,20 +192,20 @@ unsigned test_help(void)
 	failures += Check(fork_count == 0, "expected 0 but was %u", fork_count);
 
 	failures +=
-	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
+	    Check(execvp_count == 0, "expected 0 but was %u", execvp_count);
 	return failures;
 }
 
 unsigned test_version(void)
 {
 	fork_count = 0;
-	execv_count = 0;
+	execvp_count = 0;
 	stash_pathname = NULL;
 	stash_argv = NULL;
 	fake_counting_fork_rv = 0;
 
 	yoyo_fork = fake_counting_fork;
-	yoyo_execv = fake_counting_execv;
+	yoyo_execvp = fake_counting_execvp;
 
 	unsigned failures = 0;
 
@@ -236,7 +237,7 @@ unsigned test_version(void)
 	failures += Check(fork_count == 0, "expected 0 but was %u", fork_count);
 
 	failures +=
-	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
+	    Check(execvp_count == 0, "expected 0 but was %u", execvp_count);
 
 	return failures;
 }
@@ -244,13 +245,13 @@ unsigned test_version(void)
 unsigned test_failing_fork(void)
 {
 	fork_count = 0;
-	execv_count = 0;
+	execvp_count = 0;
 	stash_pathname = NULL;
 	stash_argv = NULL;
 	fake_counting_fork_rv = -1;
 
 	yoyo_fork = fake_counting_fork;
-	yoyo_execv = fake_counting_execv;
+	yoyo_execvp = fake_counting_execvp;
 	yoyo_stdout = dev_null;
 	yoyo_stderr = dev_null;
 
@@ -267,7 +268,7 @@ unsigned test_failing_fork(void)
 	failures += Check(fork_count == 1, "expected 1 but was %u", fork_count);
 
 	failures +=
-	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
+	    Check(execvp_count == 0, "expected 0 but was %u", execvp_count);
 
 	failures +=
 	    Check(stash_pathname == NULL, "expected NULL but was %d",
@@ -281,7 +282,7 @@ unsigned test_failing_fork(void)
 unsigned test_child_works_first_time(void)
 {
 	fork_count = 0;
-	execv_count = 0;
+	execvp_count = 0;
 	stash_pathname = NULL;
 	stash_argv = NULL;
 	fake_counting_fork_rv = 2111;
@@ -292,7 +293,7 @@ unsigned test_child_works_first_time(void)
 	fake_wait_status_len = 1;
 
 	yoyo_fork = fake_counting_fork;
-	yoyo_execv = fake_counting_execv;
+	yoyo_execvp = fake_counting_execvp;
 	yoyo_signal = stash_sig_handler;
 	monitor_for_hang = fake_monitor_for_hang_func;
 
@@ -320,7 +321,7 @@ unsigned test_child_works_first_time(void)
 	failures += Check(fork_count == 1, "expected 1 but was %u", fork_count);
 
 	failures +=
-	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
+	    Check(execvp_count == 0, "expected 0 but was %u", execvp_count);
 
 	failures +=
 	    Check(monitor_for_hang_count == 1, "expected 1 but was %u",
@@ -338,7 +339,7 @@ unsigned test_child_works_first_time(void)
 unsigned test_child_works_last_time(void)
 {
 	fork_count = 0;
-	execv_count = 0;
+	execvp_count = 0;
 	stash_pathname = NULL;
 	stash_argv = NULL;
 	fake_counting_fork_rv = 2111;
@@ -349,7 +350,7 @@ unsigned test_child_works_last_time(void)
 	fake_wait_status_len = 5;
 
 	yoyo_fork = fake_counting_fork;
-	yoyo_execv = fake_counting_execv;
+	yoyo_execvp = fake_counting_execvp;
 	yoyo_signal = stash_sig_handler;
 	monitor_for_hang = fake_monitor_for_hang_func;
 
@@ -377,7 +378,7 @@ unsigned test_child_works_last_time(void)
 	failures += Check(fork_count == 5, "expected 5 but was %u", fork_count);
 
 	failures +=
-	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
+	    Check(execvp_count == 0, "expected 0 but was %u", execvp_count);
 
 	failures +=
 	    Check(monitor_for_hang_count == 5, "expected 5 but was %u",
@@ -395,7 +396,7 @@ unsigned test_child_works_last_time(void)
 unsigned test_child_hangs_every_time(void)
 {
 	fork_count = 0;
-	execv_count = 0;
+	execvp_count = 0;
 	stash_pathname = NULL;
 	stash_argv = NULL;
 	fake_counting_fork_rv = 2111;
@@ -406,7 +407,7 @@ unsigned test_child_hangs_every_time(void)
 	fake_wait_status_len = 6;
 
 	yoyo_fork = fake_counting_fork;
-	yoyo_execv = fake_counting_execv;
+	yoyo_execvp = fake_counting_execvp;
 	yoyo_signal = stash_sig_handler;
 	monitor_for_hang = fake_monitor_for_hang_func;
 
@@ -438,7 +439,7 @@ unsigned test_child_hangs_every_time(void)
 		  fork_count);
 
 	failures +=
-	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
+	    Check(execvp_count == 0, "expected 0 but was %u", execvp_count);
 
 	failures +=
 	    Check(monitor_for_hang_count == max_tries, "expected %u but was %u",
@@ -456,7 +457,7 @@ unsigned test_child_hangs_every_time(void)
 unsigned test_child_killed_every_time(void)
 {
 	fork_count = 0;
-	execv_count = 0;
+	execvp_count = 0;
 	stash_pathname = NULL;
 	stash_argv = NULL;
 	fake_counting_fork_rv = 2111;
@@ -467,7 +468,7 @@ unsigned test_child_killed_every_time(void)
 	fake_wait_status_len = 6;
 
 	yoyo_fork = fake_counting_fork;
-	yoyo_execv = fake_counting_execv;
+	yoyo_execvp = fake_counting_execvp;
 	yoyo_signal = stash_sig_handler;
 	monitor_for_hang = fake_monitor_for_hang_func;
 
@@ -499,7 +500,7 @@ unsigned test_child_killed_every_time(void)
 		  fork_count);
 
 	failures +=
-	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
+	    Check(execvp_count == 0, "expected 0 but was %u", execvp_count);
 
 	failures +=
 	    Check(monitor_for_hang_count == max_tries, "expected %u but was %u",
@@ -517,13 +518,13 @@ unsigned test_child_killed_every_time(void)
 unsigned test_do_not_even_try_if_no_child(void)
 {
 	fork_count = 0;
-	execv_count = 0;
+	execvp_count = 0;
 	stash_pathname = NULL;
 	stash_argv = NULL;
 	fake_counting_fork_rv = 0;
 
 	yoyo_fork = fake_counting_fork;
-	yoyo_execv = fake_counting_execv;
+	yoyo_execvp = fake_counting_execvp;
 	yoyo_stdout = dev_null;
 	yoyo_stderr = dev_null;
 
@@ -536,7 +537,7 @@ unsigned test_do_not_even_try_if_no_child(void)
 
 	failures += Check(fork_count == 0, "expected 0 but was %u", fork_count);
 	failures +=
-	    Check(execv_count == 0, "expected 0 but was %u", execv_count);
+	    Check(execvp_count == 0, "expected 0 but was %u", execvp_count);
 	failures +=
 	    Check(stash_pathname == NULL, "expected NULL but was %d",
 		  stash_pathname);

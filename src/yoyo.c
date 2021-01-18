@@ -152,7 +152,8 @@ int yoyo(int argc, char **argv)
 			// in child process
 			Ylog(1, "command: %s\n", child_command_line[0]);
 			for (int i = 1; i < child_command_line_len; ++i) {
-				Ylog_append(1, "  arg: %s\n", child_command_line[i]);
+				Ylog_append(1, "  arg: %s\n",
+					    child_command_line[i]);
 			}
 			return yoyo_execvp(child_command_line[0],
 					   child_command_line);

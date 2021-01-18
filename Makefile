@@ -268,6 +268,8 @@ check-acceptance-succeed-first-try: build/yoyo build/faux-rogue
 		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q '(succeed)' $@.out
+	if [ $$(grep -c 'errno' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
@@ -281,6 +283,8 @@ valgrind-check-acceptance-succeed-first-try: debug/yoyo debug/faux-rogue
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q '(succeed)' $@.out
+	if [ $$(grep -c 'errno' $@.out) -eq 0 ]; \
+		then true; else false; fi
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
 	rm -f tmp.$@.failcount $@.out

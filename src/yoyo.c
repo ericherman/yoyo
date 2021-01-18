@@ -175,6 +175,7 @@ int yoyo(int argc, char **argv)
 			snprintf(buf, buflen,
 				 "Child '%s' completed successfully\n",
 				 child_command_line[0]);
+			errno = 0;
 			Ylog(0, "%s", buf);
 			strcat(summary, buf);
 			Ylog_append(0, "%s", summary);
@@ -317,7 +318,7 @@ void state_list_free(struct state_list *l)
 /* errno ENOENT: No such file or directory */
 int ignore_no_such_file(const char *epath, int eerrno)
 {
-	int log_level = (errno != ENOENT) ? 0 : 2;
+	int log_level = (eerrno != ENOENT) ? 0 : 2;
 	Ylog(log_level, "%s (%d)\n", epath, eerrno);
 
 	return 0;
@@ -404,6 +405,7 @@ int pid_exists(long pid)
 	 * is set appropriately.
 	 */
 	int rv = yoyo_kill(pid, sig_exists);
+	errno = 0;
 
 	return (rv == 0);
 }
@@ -438,6 +440,7 @@ void monitor_child_for_hang(long child_pid, unsigned max_hangs,
 				Ylog(log_level,
 				     "kill(child_pid, %s) returned %d\n",
 				     sigstr, err);
+				errno = 0;
 
 				yoyo_sleep(0);	// yield after kill
 			}

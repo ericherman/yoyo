@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Makefile for yoyo
 #  a program to launch and re-launch another program if it hangs
-# Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org>
+# Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> and
+#    Brett Neumeier <brett@freesa.org>
 
 # $@ : target label
 # $< : the first prerequisite after the colon
@@ -484,10 +485,10 @@ check-code-coverage: html-report
 coverage: html-report
 	$(BROWSER) ./coverage_html/src/yoyo.c.gcov.html
 
-check: default check-unit check-code-coverage
+check: default check-unit
 	@echo "SUCCESS! ($@)"
 
-check-all: check check-acceptance html-report
+check-all: check check-acceptance
 	@echo "SUCCESS! ($@)"
 
 tidy:

@@ -76,7 +76,7 @@ debug/test_process_looks_hung: debug/yoyo.o debug/test-util.o \
 		tests/test_process_looks_hung.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-valgrind_check_process_looks_hung: debug/test_process_looks_hung
+valgrind_process_looks_hung: debug/test_process_looks_hung
 	$(VALGRIND) ./debug/test_process_looks_hung >$@.out 2>&1
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
@@ -95,7 +95,7 @@ debug/test_qemu_states: debug/yoyo.o debug/test-util.o \
 		tests/test_qemu_states.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-valgrind_check_qemu_states: debug/test_qemu_states
+valgrind_qemu_states: debug/test_qemu_states
 	$(VALGRIND) ./debug/test_qemu_states >$@.out 2>&1
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
@@ -114,7 +114,7 @@ debug/test_term_then_kill: debug/yoyo.o debug/test-util.o \
 		tests/test_term_then_kill.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-valgrind_check_term_then_kill: debug/test_term_then_kill
+valgrind_term_then_kill: debug/test_term_then_kill
 	$(VALGRIND) ./debug/test_term_then_kill >$@.out 2>&1
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
@@ -133,7 +133,7 @@ debug/test_monitor_child_for_hang: debug/yoyo.o debug/test-util.o \
 		tests/test_monitor_child_for_hang.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-valgrind_check_monitor_child_for_hang: debug/test_monitor_child_for_hang
+valgrind_monitor_child_for_hang: debug/test_monitor_child_for_hang
 	$(VALGRIND) ./debug/test_monitor_child_for_hang >$@.out 2>&1
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
@@ -152,7 +152,7 @@ debug/test_slurp_text: debug/yoyo.o debug/test-util.o \
 		tests/test_slurp_text.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-valgrind_check_slurp_text: debug/test_slurp_text
+valgrind_slurp_text: debug/test_slurp_text
 	$(VALGRIND) ./debug/test_slurp_text >$@.out 2>&1
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
@@ -171,7 +171,7 @@ debug/test_state_list_new: debug/yoyo.o debug/test-util.o \
 		tests/test_state_list_new.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-valgrind_check_state_list_new: debug/test_state_list_new
+valgrind_state_list_new: debug/test_state_list_new
 	$(VALGRIND) ./debug/test_state_list_new >$@.out 2>&1
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
@@ -190,7 +190,7 @@ debug/test_yoyo_main: debug/yoyo.o debug/test-util.o \
 		tests/test_yoyo_main.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-valgrind_check_yoyo_main: debug/test_yoyo_main
+valgrind_yoyo_main: debug/test_yoyo_main
 	$(VALGRIND) ./debug/test_yoyo_main >$@.out 2>&1
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
@@ -209,7 +209,7 @@ debug/test_exit_reason: debug/yoyo.o debug/test-util.o \
 		tests/test_exit_reason.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-valgrind_check_exit_reason: debug/test_exit_reason
+valgrind_exit_reason: debug/test_exit_reason
 	$(VALGRIND) ./debug/test_exit_reason >$@.out 2>&1
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
@@ -227,15 +227,15 @@ check-unit: \
 		check_monitor_child_for_hang
 	@echo "SUCCESS! ($@)"
 
-valgrind-check-unit: \
-		valgrind_check_exit_reason \
-		valgrind_check_yoyo_main \
-		valgrind_check_slurp_text \
-		valgrind_check_state_list_new \
-		valgrind_check_process_looks_hung \
-		valgrind_check_qemu_states \
-		valgrind_check_term_then_kill \
-		valgrind_check_monitor_child_for_hang
+valgrind-unit: \
+		valgrind_exit_reason \
+		valgrind_yoyo_main \
+		valgrind_slurp_text \
+		valgrind_state_list_new \
+		valgrind_process_looks_hung \
+		valgrind_qemu_states \
+		valgrind_term_then_kill \
+		valgrind_monitor_child_for_hang
 	@echo "SUCCESS! ($@)"
 
 build/faux-rogue: tests/faux-rogue.c
@@ -295,12 +295,11 @@ check-acceptance-succeed-first-try: build/yoyo build/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-check-acceptance-succeed-first-try: debug/yoyo debug/faux-rogue
+valgrind-acceptance-succeed-first-try: debug/yoyo debug/faux-rogue
 	@echo
 	@echo "succeed first try"
 	echo "0" > tmp.$@.failcount
 	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	YOYO_VERBOSE=2 \
 	$(VALGRIND) ./debug/yoyo \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
@@ -326,7 +325,7 @@ check-acceptance-fail-one-then-succeed: build/yoyo build/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-check-acceptance-fail-one-then-succeed: debug/yoyo debug/faux-rogue
+valgrind-acceptance-fail-one-then-succeed: debug/yoyo debug/faux-rogue
 	@echo
 	@echo "fail once, then succeed"
 	echo "1" > tmp.$@.failcount
@@ -355,7 +354,7 @@ check-acceptance-succeed-after-long-time: build/yoyo build/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-check-acceptance-succeed-after-long-time: debug/yoyo debug/faux-rogue
+valgrind-acceptance-succeed-after-long-time: debug/yoyo debug/faux-rogue
 	@echo
 	@echo "succeed after a long time"
 	echo "0" > tmp.$@.failcount
@@ -383,15 +382,14 @@ check-acceptance-hang-twice-then-succeed: build/yoyo build/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-check-acceptance-hang-twice-then-succeed: debug/yoyo debug/faux-rogue
+valgrind-acceptance-hang-twice-then-succeed: debug/yoyo debug/faux-rogue
 	echo "./debug/faux-rogue will hang twice"
 	echo "-2" > tmp.$@.failcount
 	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	YOYO_VERBOSE=2 \
 	$(VALGRIND) ./debug/yoyo \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
-	if [ $$(grep -c "^Child './build/faux-rogue' killed" $@.out) -eq 2 ]; \
+	if [ $$(grep -c "^Child './debug/faux-rogue' killed" $@.out) -eq 2 ]; \
 		then true; else false; fi
 	grep -q '(succeed)' $@.out
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
@@ -414,7 +412,7 @@ check-acceptance-fail-every-time: build/yoyo build/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-check-acceptance-fail-every-time: debug/yoyo debug/faux-rogue
+valgrind-acceptance-fail-every-time: debug/yoyo debug/faux-rogue
 	@echo
 	echo "now ./debug/faux-rogue will hang every time"
 	echo "100" > tmp.$@.failcount
@@ -446,7 +444,7 @@ check-acceptance-hang-every-time: build/yoyo build/faux-rogue
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-check-acceptance-hang-every-time: debug/yoyo debug/faux-rogue
+valgrind-acceptance-hang-every-time: debug/yoyo debug/faux-rogue
 	@echo
 	echo "now ./debug/faux-rogue will hang every time"
 	echo "-100" > tmp.$@.failcount
@@ -474,18 +472,18 @@ check-acceptance: \
 		check-acceptance-hang-every-time
 	@echo "SUCCESS! ($@)"
 
-valgrind-check-acceptance: \
+valgrind-acceptance: \
 		valgrind-yoyo-version \
 		valgrind-yoyo-help \
-		valgrind-check-acceptance-succeed-first-try \
-		valgrind-check-acceptance-fail-one-then-succeed \
-		valgrind-check-acceptance-succeed-after-long-time \
-		valgrind-check-acceptance-hang-twice-then-succeed \
-		valgrind-check-acceptance-fail-every-time \
-		valgrind-check-acceptance-hang-every-time
+		valgrind-acceptance-succeed-first-try \
+		valgrind-acceptance-fail-one-then-succeed \
+		valgrind-acceptance-succeed-after-long-time \
+		valgrind-acceptance-hang-twice-then-succeed \
+		valgrind-acceptance-fail-every-time \
+		valgrind-acceptance-hang-every-time
 	@echo "SUCCESS! ($@)"
 
-coverage.info: valgrind-check-unit
+coverage.info: valgrind-unit
 	lcov    --checksum \
 		--capture \
 		--base-directory . \
@@ -508,10 +506,16 @@ check-code-coverage: html-report
 coverage: html-report
 	$(BROWSER) ./coverage_html/src/yoyo.c.gcov.html
 
+valgrind: valgrind-unit valgrind-acceptance
+	@echo "SUCCESS! ($@)"
+
 check: default check-unit
 	@echo "SUCCESS! ($@)"
 
-check-all: check check-code-coverage check-acceptance
+check-dev: check valgrind check-code-coverage
+	@echo "SUCCESS! ($@)"
+
+check-all: check-dev check-acceptance
 	@echo "SUCCESS! ($@)"
 
 tidy:

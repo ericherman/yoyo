@@ -511,7 +511,7 @@ coverage: html-report
 check: default check-unit
 	@echo "SUCCESS! ($@)"
 
-check-all: check check-acceptance
+check-all: check check-code-coverage check-acceptance
 	@echo "SUCCESS! ($@)"
 
 tidy:

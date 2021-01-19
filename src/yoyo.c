@@ -25,7 +25,7 @@
 #include <sys/wait.h>		/* waitpid */
 #include <unistd.h>		/* execvp, fork */
 
-const char *yoyo_version = "0.99.3";
+const char *yoyo_version = "0.99.4";
 
 const int default_hang_check_interval = 60;
 const int default_max_hangs = 5;

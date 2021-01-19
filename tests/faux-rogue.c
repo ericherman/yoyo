@@ -3,6 +3,7 @@
 /* Copyright (C) 2020, 2021 Eric Herman <eric@freesa.org> and
         Brett Neumeier <brett@freesa.org> */
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -52,10 +53,18 @@ enum action_type get_action(const char *failpath)
 
 const unsigned ten_minutes = 10 * 60;
 
+void sighandler_exit_success(int sig)
+{
+	fprintf(stderr, "%s:%d signal %d, exiting\n", __FILE__, __LINE__, sig);
+	exit(EXIT_SUCCESS);
+}
+
 int main(int argc, char **argv)
 {
 	unsigned delay = (argc > 1) ? atoi(argv[1]) : 0;
 	const char *failpath = (argc > 2) ? argv[2] : getenv("FAILCOUNT");
+
+	signal(SIGTERM, sighandler_exit_success);
 
 	unsigned remain = sleep(delay);
 

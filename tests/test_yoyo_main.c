@@ -28,8 +28,8 @@ typedef void (*sighandler_func)(int);
 typedef sighandler_func (*signal_func)(int signum, sighandler_func handler);
 extern signal_func yoyo_signal;
 
-typedef void (*monitor_for_hang_func)(long child_pid, unsigned max_hangs,
-				      unsigned hang_check_interval);
+typedef unsigned (*monitor_for_hang_func)(long child_pid, unsigned max_hangs,
+					  unsigned hang_check_interval);
 extern monitor_for_hang_func monitor_for_hang;
 
 FILE *dev_null;
@@ -65,8 +65,8 @@ sighandler_func stash_sig_handler(int signum, sighandler_func handler)
 unsigned monitor_for_hang_count;
 int *fake_wait_status;
 size_t fake_wait_status_len;
-void fake_monitor_for_hang_func(long child_pid, unsigned max_hangs,
-				unsigned hang_check_interval)
+unsigned fake_monitor_for_hang_func(long child_pid, unsigned max_hangs,
+				    unsigned hang_check_interval)
 {
 	(void)max_hangs;
 	(void)hang_check_interval;
@@ -79,6 +79,8 @@ void fake_monitor_for_hang_func(long child_pid, unsigned max_hangs,
 	++monitor_for_hang_count;
 
 	exit_reason_set(&global_exit_reason, child_pid, wait_status);
+
+	return wait_status == 9 ? 2 : 0;
 }
 
 unsigned test_fake_fork(void)

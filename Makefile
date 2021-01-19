@@ -102,6 +102,25 @@ valgrind_check_qemu_states: debug/test_qemu_states
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
+build/test_term_then_kill: build/yoyo.o build/test-util.o \
+		tests/test_term_then_kill.c
+	$(CC) $(BUILD_CFLAGS) $^ -o $@
+
+check_term_then_kill: build/test_term_then_kill
+	./build/test_term_then_kill
+	@echo "SUCCESS! ($@)"
+
+debug/test_term_then_kill: debug/yoyo.o debug/test-util.o \
+		tests/test_term_then_kill.c
+	$(CC) $(DEBUG_CFLAGS) $^ -o $@
+
+valgrind_check_term_then_kill: debug/test_term_then_kill
+	$(VALGRIND) ./debug/test_term_then_kill >$@.out 2>&1
+	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
+	rm -f $@.out
+	@echo "SUCCESS! ($@)"
+
 build/test_monitor_child_for_hang: build/yoyo.o build/test-util.o \
 		tests/test_monitor_child_for_hang.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
@@ -204,6 +223,7 @@ check-unit: \
 		check_state_list_new \
 		check_process_looks_hung \
 		check_qemu_states \
+		check_term_then_kill \
 		check_monitor_child_for_hang
 	@echo "SUCCESS! ($@)"
 
@@ -214,6 +234,7 @@ valgrind-check-unit: \
 		valgrind_check_state_list_new \
 		valgrind_check_process_looks_hung \
 		valgrind_check_qemu_states \
+		valgrind_check_term_then_kill \
 		valgrind_check_monitor_child_for_hang
 	@echo "SUCCESS! ($@)"
 
@@ -356,7 +377,8 @@ check-acceptance-hang-twice-then-succeed: build/yoyo build/faux-rogue
 	./build/yoyo \
 		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
-	grep -q 'terminated by a signal 15' $@.out
+	if [ $$(grep -c "^Child './build/faux-rogue' killed" $@.out) -eq 2 ]; \
+		then true; else false; fi
 	grep -q '(succeed)' $@.out
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
@@ -369,7 +391,8 @@ valgrind-check-acceptance-hang-twice-then-succeed: debug/yoyo debug/faux-rogue
 	$(VALGRIND) ./debug/yoyo \
 		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
-	grep -q 'terminated by a signal 15' $@.out
+	if [ $$(grep -c "^Child './build/faux-rogue' killed" $@.out) -eq 2 ]; \
+		then true; else false; fi
 	grep -q '(succeed)' $@.out
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi

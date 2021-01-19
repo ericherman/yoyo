@@ -42,8 +42,8 @@ extern const int default_max_retries;
 /* function prototypes */
 
 /* monitor a child process; signal the process if it looks hung */
-void monitor_child_for_hang(long child_pid, unsigned max_hangs,
-			    unsigned hang_check_interval);
+unsigned monitor_child_for_hang(long child_pid, unsigned max_hangs,
+				unsigned hang_check_interval);
 
 /* look for evidence of a hung process */
 int process_looks_hung(struct state_list **next, struct state_list *previous,
@@ -58,6 +58,9 @@ void free_states_wrap(struct state_list *l, void *context);
 /* will return NULL on OOM */
 struct state_list *state_list_new(size_t length);
 void state_list_free(struct state_list *l);
+
+/* issue a term, or kill-9 if needed */
+unsigned term_then_kill(long child_pid);
 
 /* fill a buffer with file contents */
 char *slurp_text(char *buf, size_t buflen, const char *path);

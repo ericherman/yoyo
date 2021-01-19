@@ -512,7 +512,7 @@ valgrind: valgrind-unit valgrind-acceptance
 check: default check-unit
 	@echo "SUCCESS! ($@)"
 
-check-dev: check valgrind check-code-coverage
+check-dev: check valgrind-unit check-code-coverage
 	@echo "SUCCESS! ($@)"
 
 check-all: check-dev check-acceptance

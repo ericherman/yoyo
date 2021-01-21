@@ -413,15 +413,14 @@ int pid_exists(long pid)
 	return (rv == 0);
 }
 
-unsigned term_then_kill(long child_pid)
+unsigned term_then_kill(long child_pid, unsigned grace_seconds)
 {
 	errno = 0;
 	int err = yoyo_kill(child_pid, SIGTERM);
 	/* ESRCH: No such process */
 	int log_level = (err && (errno != ESRCH)) ? 0 : 1;
 	Ylog(log_level, "kill(child_pid, SIGTERM) returned %d\n", err);
-	yoyo_sleep(0);		// yield after kill
-	errno = 0;
+	yoyo_sleep(grace_seconds);	// pause after term
 
 	if (!pid_exists(child_pid)) {
 		return 1;
@@ -453,7 +452,9 @@ unsigned monitor_child_for_hang(long child_pid, unsigned max_hangs,
 		if (process_looks_hung(&thread_states, previous, current)) {
 			++hang_count;
 			if (hang_count > max_hangs) {
-				killed = term_then_kill(child_pid);
+				killed =
+				    term_then_kill(child_pid,
+						   hang_check_interval);
 
 			}
 		} else {

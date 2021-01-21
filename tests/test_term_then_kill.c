@@ -9,6 +9,7 @@
 #include <stdio.h>
 
 extern int (*yoyo_kill)(pid_t pid, int sig);
+extern unsigned int (*yoyo_sleep)(unsigned int seconds);
 
 const long child_pid = 10007;
 
@@ -31,7 +32,8 @@ unsigned test_term_then_kill(void)
 	ctx.persist_after_term = 0;
 	ctx.sig_term_count = 0;
 	ctx.sig_kill_count = 0;
-	unsigned killed = term_then_kill(child_pid);
+	unsigned killed =
+	    term_then_kill(child_pid, default_hang_check_interval);
 
 	failures += Check(killed == 1, "expected 1 but was %u", killed);
 
@@ -46,7 +48,7 @@ unsigned test_term_then_kill(void)
 	ctx.persist_after_term = 1;
 	ctx.sig_term_count = 0;
 	ctx.sig_kill_count = 0;
-	killed = term_then_kill(child_pid);
+	killed = term_then_kill(child_pid, default_hang_check_interval);
 
 	failures += Check(killed == 2, "expected 1 but was %u", killed);
 
@@ -89,11 +91,17 @@ int faux_kill(pid_t pid, int sig)
 	return err ? -1 : 0;
 }
 
+unsigned int faux_sleep(unsigned int seconds)
+{
+	return seconds;
+}
+
 int main(void)
 {
 	unsigned failures = 0;
 
 	yoyo_kill = faux_kill;
+	yoyo_sleep = faux_sleep;
 
 	failures += run_test(test_term_then_kill);
 

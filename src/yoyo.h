@@ -59,8 +59,8 @@ void free_states_wrap(struct state_list *l, void *context);
 struct state_list *state_list_new(size_t length);
 void state_list_free(struct state_list *l);
 
-/* issue a term, or kill-9 if needed */
-unsigned term_then_kill(long child_pid);
+/* issue a term, or after grace_seconds, kill-9 if needed */
+unsigned term_then_kill(long child_pid, unsigned grace_seconds);
 
 /* fill a buffer with file contents */
 char *slurp_text(char *buf, size_t buflen, const char *path);

@@ -8,6 +8,9 @@
 # $< : the first prerequisite after the colon
 # $^ : all of the prerequisite files
 # $* : wildcard matched part
+#
+# patsubst : $(patsubst pattern,replacement,text)
+#	https://www.gnu.org/software/make/manual/html_node/Text-Functions.html
 
 BROWSER=firefox
 
@@ -39,6 +42,22 @@ LINDENT=indent -npro -kr -i8 -ts8 -sob -l80 -ss -ncs -cp1 -il0
 
 default: build/faux-rogue build/yoyo
 
+UNIT_TEST_BASE_NAMES = exit_reason \
+	yoyo_main \
+	slurp_text \
+	state_list_new \
+	process_looks_hung \
+	qemu_states \
+	term_then_kill \
+	monitor_child_for_hang
+
+tests: $(patsubst %, build/test_%, $(UNIT_TEST_BASE_NAMES)) \
+	$(patsubst %, debug/test_%, $(UNIT_TEST_BASE_NAMES))
+
+UNIT_TEST_TARGETS: $(patsubst %, check_%, $(UNIT_TEST_BASE_NAMES))
+VALGRIND_UNIT_TEST_TARGETS: $(patsubst %, valgrind_%, $(UNIT_TEST_BASE_NAMES))
+
+
 build/yoyo.o: src/yoyo.c src/yoyo.h
 	mkdir -pv build
 	$(CC) -c $(BUILD_CFLAGS) $< -o $@
@@ -55,6 +74,7 @@ debug/yoyo: debug/yoyo.o src/yoyo-main.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 	ls -l debug/yoyo
 
+
 build/test-util.o: tests/test-util.c tests/test-util.h
 	mkdir -pv build
 	$(CC) -c $(BUILD_CFLAGS) $< -o $@
@@ -63,180 +83,29 @@ debug/test-util.o: tests/test-util.c tests/test-util.h
 	mkdir -pv debug
 	$(CC) -c $(DEBUG_CFLAGS) $< -o $@
 
-
-build/test_process_looks_hung: build/yoyo.o build/test-util.o \
-		tests/test_process_looks_hung.c
+build/test_%: build/yoyo.o build/test-util.o tests/test_%.c
 	$(CC) $(BUILD_CFLAGS) $^ -o $@
 
-check_process_looks_hung: build/test_process_looks_hung
-	./build/test_process_looks_hung
-	@echo "SUCCESS! ($@)"
-
-debug/test_process_looks_hung: debug/yoyo.o debug/test-util.o \
-		tests/test_process_looks_hung.c
+debug/test_%: debug/yoyo.o debug/test-util.o tests/test_%.c
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
-valgrind_process_looks_hung: debug/test_process_looks_hung
-	$(VALGRIND) ./debug/test_process_looks_hung >$@.out 2>&1
+check_%: build/test_%
+	./$<
+	@echo "SUCCESS! ($@)"
+
+valgrind_%: debug/test_%
+	$(VALGRIND) ./$< >$@.out 2>&1
 	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
 		then true; else false; fi
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
-build/test_qemu_states: build/yoyo.o build/test-util.o \
-		tests/test_qemu_states.c
-	$(CC) $(BUILD_CFLAGS) $^ -o $@
-
-check_qemu_states: build/test_qemu_states
-	./build/test_qemu_states
+check-unit: UNIT_TEST_TARGETS
 	@echo "SUCCESS! ($@)"
 
-debug/test_qemu_states: debug/yoyo.o debug/test-util.o \
-		tests/test_qemu_states.c
-	$(CC) $(DEBUG_CFLAGS) $^ -o $@
-
-valgrind_qemu_states: debug/test_qemu_states
-	$(VALGRIND) ./debug/test_qemu_states >$@.out 2>&1
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f $@.out
+valgrind-unit: VALGRIND_UNIT_TEST_TARGETS
 	@echo "SUCCESS! ($@)"
 
-build/test_term_then_kill: build/yoyo.o build/test-util.o \
-		tests/test_term_then_kill.c
-	$(CC) $(BUILD_CFLAGS) $^ -o $@
-
-check_term_then_kill: build/test_term_then_kill
-	./build/test_term_then_kill
-	@echo "SUCCESS! ($@)"
-
-debug/test_term_then_kill: debug/yoyo.o debug/test-util.o \
-		tests/test_term_then_kill.c
-	$(CC) $(DEBUG_CFLAGS) $^ -o $@
-
-valgrind_term_then_kill: debug/test_term_then_kill
-	$(VALGRIND) ./debug/test_term_then_kill >$@.out 2>&1
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f $@.out
-	@echo "SUCCESS! ($@)"
-
-build/test_monitor_child_for_hang: build/yoyo.o build/test-util.o \
-		tests/test_monitor_child_for_hang.c
-	$(CC) $(BUILD_CFLAGS) $^ -o $@
-
-check_monitor_child_for_hang: build/test_monitor_child_for_hang
-	./build/test_monitor_child_for_hang
-	@echo "SUCCESS! ($@)"
-
-debug/test_monitor_child_for_hang: debug/yoyo.o debug/test-util.o \
-		tests/test_monitor_child_for_hang.c
-	$(CC) $(DEBUG_CFLAGS) $^ -o $@
-
-valgrind_monitor_child_for_hang: debug/test_monitor_child_for_hang
-	$(VALGRIND) ./debug/test_monitor_child_for_hang >$@.out 2>&1
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f $@.out
-	@echo "SUCCESS! ($@)"
-
-build/test_slurp_text: build/yoyo.o build/test-util.o \
-		tests/test_slurp_text.c
-	$(CC) $(BUILD_CFLAGS) $^ -o $@
-
-check_slurp_text: build/test_slurp_text
-	./build/test_slurp_text
-	@echo "SUCCESS! ($@)"
-
-debug/test_slurp_text: debug/yoyo.o debug/test-util.o \
-		tests/test_slurp_text.c
-	$(CC) $(DEBUG_CFLAGS) $^ -o $@
-
-valgrind_slurp_text: debug/test_slurp_text
-	$(VALGRIND) ./debug/test_slurp_text >$@.out 2>&1
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f $@.out
-	@echo "SUCCESS! ($@)"
-
-build/test_state_list_new: build/yoyo.o build/test-util.o \
-		tests/test_state_list_new.c
-	$(CC) $(BUILD_CFLAGS) $^ -o $@
-
-check_state_list_new: build/test_state_list_new
-	./build/test_state_list_new
-	@echo "SUCCESS! ($@)"
-
-debug/test_state_list_new: debug/yoyo.o debug/test-util.o \
-		tests/test_state_list_new.c
-	$(CC) $(DEBUG_CFLAGS) $^ -o $@
-
-valgrind_state_list_new: debug/test_state_list_new
-	$(VALGRIND) ./debug/test_state_list_new >$@.out 2>&1
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f $@.out
-	@echo "SUCCESS! ($@)"
-
-build/test_yoyo_main: build/yoyo.o build/test-util.o \
-		tests/test_yoyo_main.c
-	$(CC) $(BUILD_CFLAGS) $^ -o $@
-
-check_yoyo_main: build/test_yoyo_main
-	./build/test_yoyo_main
-	@echo "SUCCESS! ($@)"
-
-debug/test_yoyo_main: debug/yoyo.o debug/test-util.o \
-		tests/test_yoyo_main.c
-	$(CC) $(DEBUG_CFLAGS) $^ -o $@
-
-valgrind_yoyo_main: debug/test_yoyo_main
-	$(VALGRIND) ./debug/test_yoyo_main >$@.out 2>&1
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f $@.out
-	@echo "SUCCESS! ($@)"
-
-build/test_exit_reason: build/yoyo.o build/test-util.o \
-		tests/test_exit_reason.c
-	$(CC) $(BUILD_CFLAGS) $^ -o $@
-
-check_exit_reason: build/test_exit_reason
-	./build/test_exit_reason
-	@echo "SUCCESS! ($@)"
-
-debug/test_exit_reason: debug/yoyo.o debug/test-util.o \
-		tests/test_exit_reason.c
-	$(CC) $(DEBUG_CFLAGS) $^ -o $@
-
-valgrind_exit_reason: debug/test_exit_reason
-	$(VALGRIND) ./debug/test_exit_reason >$@.out 2>&1
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -fv $@.out
-	@echo "SUCCESS! ($@)"
-
-check-unit: \
-		check_exit_reason \
-		check_yoyo_main \
-		check_slurp_text \
-		check_state_list_new \
-		check_process_looks_hung \
-		check_qemu_states \
-		check_term_then_kill \
-		check_monitor_child_for_hang
-	@echo "SUCCESS! ($@)"
-
-valgrind-unit: \
-		valgrind_exit_reason \
-		valgrind_yoyo_main \
-		valgrind_slurp_text \
-		valgrind_state_list_new \
-		valgrind_process_looks_hung \
-		valgrind_qemu_states \
-		valgrind_term_then_kill \
-		valgrind_monitor_child_for_hang
-	@echo "SUCCESS! ($@)"
 
 build/faux-rogue: tests/faux-rogue.c
 	mkdir -pv build

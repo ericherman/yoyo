@@ -8,6 +8,8 @@
 # $< : the first prerequisite after the colon
 # $^ : all of the prerequisite files
 # $* : wildcard matched part
+# Target-specific Variable syntax:
+# https://www.gnu.org/software/make/manual/html_node/Target_002dspecific.html
 #
 # patsubst : $(patsubst pattern,replacement,text)
 #	https://www.gnu.org/software/make/manual/html_node/Text-Functions.html
@@ -50,6 +52,17 @@ UNIT_TEST_BASE_NAMES = exit_reason \
 	qemu_states \
 	term_then_kill \
 	monitor_child_for_hang
+
+# Target-specific Variables:
+check-acceptance-%: BUILD_DIR = build
+valgrind-acceptance-%: BUILD_DIR = debug
+check-acceptance-%: WRAPPER =
+valgrind-acceptance-%: WRAPPER = YOYO_VERBOSE=2 $(VALGRIND)
+check%: EXTRA_CHECK = true
+valgrind%: EXTRA_CHECK = if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
+		then true; else false; fi && \
+		if [ $$(grep -c 'probably lost' $@.out) -eq 0 ]; \
+		then true; else false; fi
 
 tests: $(patsubst %, build/test_%, $(UNIT_TEST_BASE_NAMES)) \
 	$(patsubst %, debug/test_%, $(UNIT_TEST_BASE_NAMES))
@@ -95,9 +108,7 @@ check_%: build/test_%
 
 valgrind_%: debug/test_%
 	$(VALGRIND) ./$< >$@.out 2>&1
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f $@.out
+	$(EXTRA_CHECK)
 	@echo "SUCCESS! ($@)"
 
 check-unit: UNIT_TEST_TARGETS
@@ -115,224 +126,126 @@ debug/faux-rogue: tests/faux-rogue.c
 	mkdir -pv debug
 	$(CC) $(DEBUG_CFLAGS) $^ -o $@
 
+ACCEPTANCE_DEPS = build/yoyo build/faux-rogue \
+		debug/yoyo debug/faux-rogue
 
-yoyo-version: ./build/yoyo
+check-acceptance-yoyo-version valgrind-acceptance-yoyo-version: \
+		$(ACCEPTANCE_DEPS)
 	@echo
-	./build/yoyo --version >$@.out 2>&1
+	$(WRAPPER) $(BUILD_DIR)/yoyo \
+		--version \
+		>$@.out 2>&1
 	grep -q '$(YOYO_VERSION)' $@.out
+	$(EXTRA_CHECK)
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-yoyo-version: ./debug/yoyo
+check-acceptance-yoyo-help valgrind-acceptance-yoyo-help: \
+		$(ACCEPTANCE_DEPS)
 	@echo
-	$(VALGRIND) ./debug/yoyo --version >$@.out 2>&1
-	grep -q '$(YOYO_VERSION)' $@.out
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f $@.out
-	@echo "SUCCESS! ($@)"
-
-yoyo-help:./build/yoyo
-	@echo
-	./build/yoyo --help >$@.out 2>&1
+	$(WRAPPER) $(BUILD_DIR)/yoyo \
+		--help \
+		>$@.out 2>&1
 	grep -q 'help' $@.out
 	grep -q 'version' $@.out
+	$(EXTRA_CHECK)
 	rm -f $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-yoyo-help: ./debug/yoyo
-	@echo
-	$(VALGRIND) ./debug/yoyo --help >$@.out 2>&1
-	grep -q 'help' $@.out
-	grep -q 'version' $@.out
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f $@.out
-	@echo "SUCCESS! ($@)"
-
-check-acceptance-succeed-first-try: build/yoyo build/faux-rogue
+check-acceptance-succeed-first-try valgrind-acceptance-succeed-first-try: \
+		$(ACCEPTANCE_DEPS)
 	@echo
 	@echo "succeed first try"
 	echo "0" > tmp.$@.failcount
 	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	./build/yoyo \
-		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
+	$(WRAPPER) $(BUILD_DIR)/yoyo \
+		$(BUILD_DIR)/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q '(succeed)' $@.out
-	if [ $$(grep -c 'errno' $@.out) -eq 0 ]; \
-		then true; else false; fi
+	$(EXTRA_CHECK)
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-acceptance-succeed-first-try: debug/yoyo debug/faux-rogue
-	@echo
-	@echo "succeed first try"
-	echo "0" > tmp.$@.failcount
-	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	$(VALGRIND) ./debug/yoyo \
-		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
-		>$@.out 2>&1
-	grep -q '(succeed)' $@.out
-	if [ $$(grep -c 'errno' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f tmp.$@.failcount $@.out
-	@echo "SUCCESS! ($@)"
-
-check-acceptance-fail-one-then-succeed: build/yoyo build/faux-rogue
+check-acceptance-fail-one-then-succeed valgrind-acceptance-fail-one-then-succeed: \
+		$(ACCEPTANCE_DEPS)
 	@echo
 	@echo "fail once, then succeed"
 	echo "1" > tmp.$@.failcount
 	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	./build/yoyo \
-		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
+	$(WRAPPER) $(BUILD_DIR)/yoyo \
+		$(BUILD_DIR)/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q 'exited with status 127' $@.out
 	grep -q '(succeed)' $@.out
 	grep -q '0' tmp.$@.failcount
+	$(EXTRA_CHECK)
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-acceptance-fail-one-then-succeed: debug/yoyo debug/faux-rogue
-	@echo
-	@echo "fail once, then succeed"
-	echo "1" > tmp.$@.failcount
-	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	YOYO_VERBOSE=2 \
-	$(VALGRIND) ./debug/yoyo \
-		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
-		>$@.out 2>&1
-	grep -q 'exited with status 127' $@.out
-	grep -q '(succeed)' $@.out
-	grep -q '0' tmp.$@.failcount
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f tmp.$@.failcount $@.out
-	@echo "SUCCESS! ($@)"
-
-check-acceptance-succeed-after-long-time: build/yoyo build/faux-rogue
+check-acceptance-succeed-after-long-time valgrind-acceptance-succeed-after-long-time: \
+		$(ACCEPTANCE_DEPS)
 	@echo
 	@echo "succeed after a long time"
 	echo "0" > tmp.$@.failcount
 	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	./build/yoyo \
-		./build/faux-rogue $(FIXTURE_SLEEP_LONG) tmp.$@.failcount \
+	$(WRAPPER) $(BUILD_DIR)/yoyo \
+		$(BUILD_DIR)/faux-rogue $(FIXTURE_SLEEP_LONG) tmp.$@.failcount \
 		>$@.out 2>&1
 	grep -q '(succeed)' $@.out
+	$(EXTRA_CHECK)
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-acceptance-succeed-after-long-time: debug/yoyo debug/faux-rogue
-	@echo
-	@echo "succeed after a long time"
-	echo "0" > tmp.$@.failcount
-	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	YOYO_VERBOSE=2 \
-	$(VALGRIND) ./debug/yoyo \
-		./debug/faux-rogue $(FIXTURE_SLEEP_LONG) tmp.$@.failcount \
-		>$@.out 2>&1
-	grep -q '(succeed)' $@.out
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f tmp.$@.failcount $@.out
-	@echo "SUCCESS! ($@)"
-
-check-acceptance-hang-twice-then-succeed: build/yoyo build/faux-rogue
-	echo "./build/faux-rogue will hang twice"
+check-acceptance-hang-twice-then-succeed valgrind-acceptance-hang-twice-then-succeed: \
+		$(ACCEPTANCE_DEPS)
+	echo "$(BUILD_DIR)/faux-rogue will hang twice"
 	echo "-2" > tmp.$@.failcount
 	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	./build/yoyo \
-		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
+	$(WRAPPER) $(BUILD_DIR)/yoyo \
+		$(BUILD_DIR)/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1
-	if [ $$(grep -c "^Child './build/faux-rogue' killed" $@.out) -eq 2 ]; \
+	if [ $$(grep -c "^Child '$(BUILD_DIR)/faux-rogue' killed" $@.out) -eq 2 ]; \
 		then true; else false; fi
 	grep -q '(succeed)' $@.out
+	$(EXTRA_CHECK)
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-acceptance-hang-twice-then-succeed: debug/yoyo debug/faux-rogue
-	echo "./debug/faux-rogue will hang twice"
-	echo "-2" > tmp.$@.failcount
-	YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	$(VALGRIND) ./debug/yoyo \
-		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
-		>$@.out 2>&1
-	if [ $$(grep -c "^Child './debug/faux-rogue' killed" $@.out) -eq 2 ]; \
-		then true; else false; fi
-	grep -q '(succeed)' $@.out
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f tmp.$@.failcount $@.out
-	@echo "SUCCESS! ($@)"
-
-check-acceptance-fail-every-time: build/yoyo build/faux-rogue
+check-acceptance-fail-every-time valgrind-acceptance-fail-every-time: \
+		$(ACCEPTANCE_DEPS)
 	@echo
-	echo "now ./build/faux-rogue will hang every time"
+	echo "now $(BUILD_DIR)/faux-rogue will fail every time"
 	echo "100" > tmp.$@.failcount
 	-( YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	   YOYO_VERBOSE=2 \
 	   MAX_HANGS=3 \
 	   YOYO_MAX_RETRIES=2 \
-	   ./build/yoyo \
-		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
+	   $(WRAPPER) $(BUILD_DIR)/yoyo \
+		$(BUILD_DIR)/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1 )
 	grep -q 'Retries limit reached' $@.out
+	$(EXTRA_CHECK)
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
-valgrind-acceptance-fail-every-time: debug/yoyo debug/faux-rogue
+check-acceptance-hang-every-time valgrind-acceptance-hang-every-time: \
+		$(ACCEPTANCE_DEPS)
 	@echo
-	echo "now ./debug/faux-rogue will hang every time"
-	echo "100" > tmp.$@.failcount
-	-( YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	   YOYO_VERBOSE=2 \
-	   YOYO_MAX_HANGS=3 \
-	   YOYO_MAX_RETRIES=2 \
-	   ./debug/yoyo \
-		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
-		>$@.out 2>&1 )
-	grep -q 'Retries limit reached' $@.out
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
-	rm -f tmp.$@.failcount $@.out
-	@echo "SUCCESS! ($@)"
-
-check-acceptance-hang-every-time: build/yoyo build/faux-rogue
-	@echo
-	echo "now ./build/faux-rogue will hang every time"
+	echo "now $(BUILD_DIR)/faux-rogue will hang every time"
 	echo "-100" > tmp.$@.failcount
 	-( YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	   YOYO_VERBOSE=2 \
 	   YOYO_MAX_HANGS=3 \
 	   YOYO_MAX_RETRIES=2 \
-	   ./build/yoyo \
-		./build/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
+	   $(WRAPPER) $(BUILD_DIR)/yoyo \
+		$(BUILD_DIR)/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
 		>$@.out 2>&1 )
 	grep -q 'Retries limit reached' $@.out
-	rm -f tmp.$@.failcount $@.out
-	@echo "SUCCESS! ($@)"
-
-valgrind-acceptance-hang-every-time: debug/yoyo debug/faux-rogue
-	@echo
-	echo "now ./debug/faux-rogue will hang every time"
-	echo "-100" > tmp.$@.failcount
-	-( YOYO_HANG_CHECK_INTERVAL=$(HANG_CHECK_INTERVAL) \
-	   YOYO_VERBOSE=2 \
-	   YOYO_MAX_HANGS=3 \
-	   YOYO_MAX_RETRIES=2 \
-	   $(VALGRIND) ./debug/yoyo \
-		./debug/faux-rogue $(FIXTURE_SLEEP) tmp.$@.failcount \
-		>$@.out 2>&1 )
-	grep -q 'Retries limit reached' $@.out
-	if [ $$(grep -c 'definitely lost' $@.out) -eq 0 ]; \
-		then true; else false; fi
+	$(EXTRA_CHECK)
 	rm -f tmp.$@.failcount $@.out
 	@echo "SUCCESS! ($@)"
 
 check-acceptance: \
-		yoyo-version \
-		yoyo-help \
+		check-acceptance-yoyo-version \
+		check-acceptance-yoyo-help \
 		check-acceptance-succeed-first-try \
 		check-acceptance-fail-one-then-succeed \
 		check-acceptance-succeed-after-long-time \
@@ -342,8 +255,8 @@ check-acceptance: \
 	@echo "SUCCESS! ($@)"
 
 valgrind-acceptance: \
-		valgrind-yoyo-version \
-		valgrind-yoyo-help \
+		valgrind-acceptance-yoyo-version \
+		valgrind-acceptance-yoyo-help \
 		valgrind-acceptance-succeed-first-try \
 		valgrind-acceptance-fail-one-then-succeed \
 		valgrind-acceptance-succeed-after-long-time \

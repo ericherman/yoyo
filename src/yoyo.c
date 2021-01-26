@@ -89,6 +89,12 @@ unsigned (*monitor_for_hang)(long child_pid, unsigned max_hangs,
 			     unsigned hang_check_interval) =
     monitor_child_for_hang;
 
+#define Die_if_null(ptr) \
+	if (!ptr) { \
+		Ylog(INT_MIN, "%s is NULL? Exiting with failure.", #ptr); \
+		exit(EXIT_FAILURE); \
+	}
+
 /*************************************************************************/
 /* functions */
 int print_help(FILE *out);
@@ -288,22 +294,35 @@ int thread_state_from_path(struct thread_state *ts, const char *path)
 	return (4 - matched);
 }
 
+void *calloc_or_log(const char *file, int line, const char *func, size_t nmemb,
+		    size_t size)
+{
+	void *p = yoyo_calloc(nmemb, size);
+	if (p) {
+		return p;
+	}
+
+	size_t total = nmemb * size;
+	yoyo_log(0, Y_USE_PREFIX, file, line, func,
+		 "could not calloc(%zu, %zu) (%zu bytes)?", nmemb, size, total);
+	return NULL;
+}
+
+#define Calloc_or_log(nmemb, size) \
+	calloc_or_log(__FILE__, __LINE__, __func__, nmemb, size)
+
 struct state_list *state_list_new(size_t length)
 {
 	size_t size = sizeof(struct state_list);
-	struct state_list *sl = yoyo_calloc(1, size);
+	struct state_list *sl = Calloc_or_log(1, size);
 	if (!sl) {
-		Ylog(0, "could not alloc (%zu bytes)?\n", size);
 		return NULL;
 	}
 
 	sl->len = length;
 	size = sizeof(struct thread_state);
-	sl->states = yoyo_calloc(sl->len, size);
+	sl->states = Calloc_or_log(sl->len, size);
 	if (!sl->states) {
-		size_t total = sl->len * size;
-		Ylog(0, "could not alloc(%zu, %zu) (%zu bytes)?\n", sl->len,
-		     size, total);
 		yoyo_free(sl);
 		return NULL;
 	}
@@ -344,13 +363,7 @@ struct state_list *get_states_proc(long pid)
 	size_t len = threads.gl_pathc;
 	Ylog(1, "matches for %ld: %zu\n", pid, len);
 	struct state_list *sl = state_list_new(len);
-	/* by inspection, does the right thing (exits on malloc failure),
-	 * no intention test --eric.herman 2020-12-31 */
-	/* LCOV_EXCL_START */
-	if (!sl) {
-		exit(EXIT_FAILURE);
-	}
-	/* LCOV_EXCL_STOP */
+	Die_if_null(sl);
 
 	int err = 0;
 	for (size_t i = 0; i < len; ++i) {

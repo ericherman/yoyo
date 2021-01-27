@@ -1,3 +1,4 @@
 * change signal to sigaction
 * expand monitor of /proc to include tasks of descendant processes as
   well as the direct child process
+* document useful Makefile targets in README

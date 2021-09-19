@@ -54,14 +54,18 @@ int fake_counting_execvp(const char *pathname, char *const *argv)
 }
 
 int stashed_signum;
-const struct sigaction *stash_act;
-const struct sigaction *stash_oldact;
+struct sigaction stash_act;
+struct sigaction stash_oldact;
 int stash_sigaction(int signum, const struct sigaction *act,
 		    struct sigaction *oldact)
 {
 	stashed_signum = signum;
-	stash_act = act;
-	stash_oldact = oldact;
+	if (act) {
+		stash_act = *act;
+	}
+	if (oldact) {
+		stash_oldact = *oldact;
+	}
 	return 0;
 }
 
@@ -94,8 +98,8 @@ unsigned test_fake_fork(void)
 	stash_argv = NULL;
 	fake_counting_fork_rv = 0;
 	stashed_signum = 0;
-	stash_act = NULL;
-	stash_oldact = NULL;
+	memset(&stash_act, 0x00, sizeof(struct sigaction));
+	memset(&stash_oldact, 0x00, sizeof(struct sigaction));
 	monitor_for_hang_count = 0;
 	fake_wait_status_len = 0;
 
@@ -147,12 +151,15 @@ unsigned test_fake_fork(void)
 	failures +=
 	    Check(stashed_signum == SIGCHLD, "expected SIGCHLD (%d) but was %d",
 		  SIGCHLD, stashed_signum);
+
+	void (*actual_handler)(int) = stash_act.sa_handler;
+	void (*expect_handler)(int) = exit_reason_child_trap;
 	failures +=
-	    Check(stash_act->sa_handler == exit_reason_child_trap,
+	    Check(actual_handler == expect_handler,
 		  "expected &exit_reason_child_trap (%p) but was %p",
-		  exit_reason_child_trap, stash_act->sa_handler);
+		  expect_handler, actual_handler);
 	failures +=
-	    Check(stash_oldact == NULL, "expected NULL but was %p",
+	    Check(stash_oldact.sa_handler == NULL, "expected NULL but was %p",
 		  stash_oldact);
 
 	failures +=

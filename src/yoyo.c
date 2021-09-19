@@ -142,6 +142,7 @@ int yoyo(int argc, char **argv)
 
 	// now that globals are setup, set the handler
 	struct sigaction our_sigaction;
+	memset(&our_sigaction, 0x00, sizeof(struct sigaction));
 	our_sigaction.sa_handler = exit_reason_child_trap;
 	sigemptyset(&our_sigaction.sa_mask);
 	our_sigaction.sa_flags = 0;

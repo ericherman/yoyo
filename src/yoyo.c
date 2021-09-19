@@ -76,10 +76,9 @@ int (*yoyo_execvp)(const char *pathname, char *const argv[]) = execvp;
 int (*yoyo_kill)(pid_t pid, int sig) = kill;
 unsigned int (*yoyo_sleep)(unsigned int seconds) = sleep;
 
-/* TODO: replace calls to "signal" with "sigaction" */
-/* global pointers to signal, waitpid provided for tests */
-typedef void (*sighandler_func)(int);
-sighandler_func (*yoyo_signal)(int signum, sighandler_func handler) = signal;
+/* global pointers to sigaction, waitpid provided for tests */
+int (*yoyo_sigaction)(int signum, const struct sigaction * act,
+		      struct sigaction * oldact) = sigaction;
 pid_t (*yoyo_waitpid)(pid_t pid, int *wstatus, int options) = waitpid;
 
 /* global pointers to internal functions */
@@ -142,7 +141,11 @@ int yoyo(int argc, char **argv)
 	exit_reason_clear(&global_exit_reason);
 
 	// now that globals are setup, set the handler
-	yoyo_signal(SIGCHLD, &exit_reason_child_trap);
+	struct sigaction our_sigaction;
+	our_sigaction.sa_handler = exit_reason_child_trap;
+	sigemptyset(&our_sigaction.sa_mask);
+	our_sigaction.sa_flags = 0;
+	yoyo_sigaction(SIGCHLD, &our_sigaction, NULL);
 
 	int max_tries = max_retries + 1;
 	for (int i = 0; i < max_tries; ++i) {

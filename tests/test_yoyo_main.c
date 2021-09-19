@@ -24,9 +24,9 @@ extern fork_func yoyo_fork;
 typedef int (*execvp_func)(const char *pathname, char *const argv[]);
 extern execvp_func yoyo_execvp;
 
-typedef void (*sighandler_func)(int);
-typedef sighandler_func (*signal_func)(int signum, sighandler_func handler);
-extern signal_func yoyo_signal;
+typedef int (*sigaction_func)(int signum, const struct sigaction * act,
+			      struct sigaction * oldact);
+extern sigaction_func yoyo_sigaction;
 
 typedef unsigned (*monitor_for_hang_func)(long child_pid, unsigned max_hangs,
 					  unsigned hang_check_interval);
@@ -54,12 +54,15 @@ int fake_counting_execvp(const char *pathname, char *const *argv)
 }
 
 int stashed_signum;
-sighandler_func stashed_handler;
-sighandler_func stash_sig_handler(int signum, sighandler_func handler)
+const struct sigaction *stash_act;
+const struct sigaction *stash_oldact;
+int stash_sigaction(int signum, const struct sigaction *act,
+		    struct sigaction *oldact)
 {
 	stashed_signum = signum;
-	stashed_handler = handler;
-	return NULL;
+	stash_act = act;
+	stash_oldact = oldact;
+	return 0;
 }
 
 unsigned monitor_for_hang_count;
@@ -91,13 +94,14 @@ unsigned test_fake_fork(void)
 	stash_argv = NULL;
 	fake_counting_fork_rv = 0;
 	stashed_signum = 0;
-	stashed_handler = NULL;
+	stash_act = NULL;
+	stash_oldact = NULL;
 	monitor_for_hang_count = 0;
 	fake_wait_status_len = 0;
 
 	yoyo_fork = fake_counting_fork;
 	yoyo_execvp = fake_counting_execvp;
-	yoyo_signal = stash_sig_handler;
+	yoyo_sigaction = stash_sigaction;
 	monitor_for_hang = fake_monitor_for_hang_func;
 
 	unsigned failures = 0;
@@ -144,9 +148,12 @@ unsigned test_fake_fork(void)
 	    Check(stashed_signum == SIGCHLD, "expected SIGCHLD (%d) but was %d",
 		  SIGCHLD, stashed_signum);
 	failures +=
-	    Check(stashed_handler == exit_reason_child_trap,
+	    Check(stash_act->sa_handler == exit_reason_child_trap,
 		  "expected &exit_reason_child_trap (%p) but was %p",
-		  exit_reason_child_trap, stashed_handler);
+		  exit_reason_child_trap, stash_act->sa_handler);
+	failures +=
+	    Check(stash_oldact == NULL, "expected NULL but was %p",
+		  stash_oldact);
 
 	failures +=
 	    Check(monitor_for_hang_count == 0, "expected 0 but was %u",
@@ -296,7 +303,7 @@ unsigned test_child_works_first_time(void)
 
 	yoyo_fork = fake_counting_fork;
 	yoyo_execvp = fake_counting_execvp;
-	yoyo_signal = stash_sig_handler;
+	yoyo_sigaction = stash_sigaction;
 	monitor_for_hang = fake_monitor_for_hang_func;
 
 	const size_t buflen = 80 * 24;
@@ -353,7 +360,7 @@ unsigned test_child_works_last_time(void)
 
 	yoyo_fork = fake_counting_fork;
 	yoyo_execvp = fake_counting_execvp;
-	yoyo_signal = stash_sig_handler;
+	yoyo_sigaction = stash_sigaction;
 	monitor_for_hang = fake_monitor_for_hang_func;
 
 	const size_t buflen = 80 * 24;
@@ -410,7 +417,7 @@ unsigned test_child_hangs_every_time(void)
 
 	yoyo_fork = fake_counting_fork;
 	yoyo_execvp = fake_counting_execvp;
-	yoyo_signal = stash_sig_handler;
+	yoyo_sigaction = stash_sigaction;
 	monitor_for_hang = fake_monitor_for_hang_func;
 
 	const size_t buflen = 80 * 24;
@@ -471,7 +478,7 @@ unsigned test_child_killed_every_time(void)
 
 	yoyo_fork = fake_counting_fork;
 	yoyo_execvp = fake_counting_execvp;
-	yoyo_signal = stash_sig_handler;
+	yoyo_sigaction = stash_sigaction;
 	monitor_for_hang = fake_monitor_for_hang_func;
 
 	const size_t buflen = 80 * 24;

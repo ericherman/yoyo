@@ -35,16 +35,9 @@ const int default_max_retries = 5;
 /* globals */
 /*************************************************************************/
 
-/* The POSIX definition of "signal()" does not allow for a context parameter:
-
-	#include <signal.h>
-
-	typedef void (*sighandler_t)(int);
-
-	sighandler_t signal(int signum, sighandler_t handler);
-
-  Thus, we will need some global space to pass data between functions.
-*/
+/* The sigaction system call provides no obvious way to pass context, so
+ * we use global_exit_reason to pass data between functions.
+ */
 struct exit_reason global_exit_reason;
 
 /* global verbose, can be set via commandline options, or directly in tests */
